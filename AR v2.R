@@ -5,10 +5,9 @@ library(tseries)
 library(tibble) # Assuming data is in a tibble
 library(tidyr) # For pivoting the data
 library(dplyr)
-library(fitAR)
 library("BVAR")
 
-FORECAST_HORIZON = 4 # user input from the frontend
+FORECAST_HORIZON = 3 # user input from the frontend
 MAX_LAG = 15
 
 fitAR=function(Y,p,h){
@@ -58,8 +57,8 @@ find_best_model_loocv=function(stat_gdp_column){
   lag_range = 1:MAX_LAG
   
   for(lag in lag_range){
-    starting_index <- forecast_horizon + lag
     mse <- numeric(MAX_LAG)
+    starting_index <- forecast_horizon + lag
     Y <- column_clean[starting_index:length(column_clean)]
     n_rows <- length(column_clean) - starting_index + 1
     X <- matrix(nrow = n_rows, ncol = lag + 1)
@@ -137,6 +136,14 @@ if(FORECAST_HORIZON == 1){
 }else{
   best_models_loocv = construct_all_models(stat_gdp)
 }
+
+
+best_models_aic[[3]]$pred
+
+
+
+
+view(stat_gdp)
 
 
 
