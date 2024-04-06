@@ -96,13 +96,13 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   return(best_model_lag)
 }
 
-test = fitAR_me(66, "Q4", stat_gdp, 2, 8)
+test = fitAR(66, "Q4", stat_gdp, 2, 8)
 test
 
 for (i in 65:99){
-  print(fitAR_me(i, "Q4", stat_gdp, 2, 8))
+  print(fitAR(i, "Q4", stat_gdp, 2, 8))
 }
 
-fitAR_me("70","Q4",stat_gdp,4,10)
+fitAR("70","Q4",stat_gdp,4,10)
 
 
