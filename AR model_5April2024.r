@@ -54,7 +54,8 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
       all_models_aic[label] = model_aic
       all_models[label] = model_fit 
     }
-    best_model_lag = names(which.min(unlist(all_models_aic)))
+    best_model_key = names(which.min(unlist(all_models_aic)))
+    best_model_lag = which.min(unlist(all_models_aic))
     best_model = all_models[best_model_lag]
     return(best_model_lag)
     
@@ -104,6 +105,8 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
 test = fitAR(65, "Q4", stat_gdp, 2, 2)
 test
 
+test = fitAR(65, "Q4", stat_gdp, 1, 2)
+test
 
 for (i in 65:99){
   print(fitAR(i, "Q4", stat_gdp, 1, 8))
