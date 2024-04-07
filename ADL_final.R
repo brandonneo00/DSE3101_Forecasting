@@ -174,7 +174,7 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
     rows_routput <- dim(subset_X_mat_routput)[1]
   
     X_mat_hstart = subset_X_mat_hstart[1:rows_routput,]
-    combined_matrix<- cbind(subset_X_mat_routput, X_mat_hstart)
+    combined_matrix<- cbind(1, subset_X_mat_routput, X_mat_hstart)
     
     aux = embed(subset_routput_df, (max_lags + forecast_horizon))
     aux = aux[complete.cases(aux), ]
