@@ -55,8 +55,8 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
       all_models[label] = model_fit 
     }
     best_model_key = names(which.min(unlist(all_models_aic)))
-    best_model_lag = which.min(unlist(all_models_aic))
-    best_model = all_models[best_model_lag]
+    best_model_lag = which.min(unlist(all_models_aic)) #optimal lag
+    best_model = all_models[best_model_lag] 
     return(best_model_lag)
     
   } else{ #for beyond 1 step ahead forecast
