@@ -9,6 +9,9 @@ library("BVAR")
 
 
 data <- read_excel('ROUTPUTQvQd.xlsx')
+date = data %>%
+  select(DATE)
+date
 
 gdp_num <- data[, 2:ncol(data)] 
 gdp_num <- mutate_all(gdp_num, as.numeric) 
@@ -25,8 +28,8 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   #print(reference_col)
   
   subset_df = as.matrix(df %>%
-    select(reference_col))
-
+                          select(reference_col))
+  
   #subset_df$DATE = zoo::as.yearqtr(subset_df$DATE, format = "%Y:Q%q")
   #subset_df = subset_df %>%
   #  mutate_if(is.character, as.double)
@@ -51,9 +54,10 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
       all_models_aic[label] = model_aic
       all_models[label] = model_fit 
     }
-    best_model_key = names(which.min(unlist(all_models_aic)))
-    best_model = all_models[best_model_key]
-
+    best_model_lag = names(which.min(unlist(all_models_aic)))
+    best_model = all_models[best_model_lag]
+    return(best_model_lag)
+    
   } else{ #for beyond 1 step ahead forecast
     all_models_loocv_mse = list()
     
@@ -63,6 +67,7 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
       
       #creating the X matrix based on AR model
       subset_X_mat = as.matrix(X_mat[, 1:i])
+      subset_X_mat = cbind(1, subset_X_mat) #adding a col of 1s for intercept term
       
       #calculating estimated coefficients
       beta_hat = solve(t(subset_X_mat) %*% subset_X_mat) %*% (t(subset_X_mat) %*% y)
@@ -96,13 +101,13 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   return(best_model_lag)
 }
 
-test = fitAR(66, "Q4", stat_gdp, 2, 8)
+test = fitAR(65, "Q4", stat_gdp, 2, 2)
 test
 
+
 for (i in 65:99){
-  print(fitAR(i, "Q4", stat_gdp, 2, 8))
+  print(fitAR(i, "Q4", stat_gdp, 1, 8))
 }
 
 fitAR("70","Q4",stat_gdp,4,10)
-
 
