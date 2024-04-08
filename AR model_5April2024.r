@@ -37,8 +37,8 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   aux = embed(subset_df, (max_lags + forecast_horizon))
   aux = aux[complete.cases(aux), ]
   y = aux[, 1]
-  X = data.frame(aux[, -1])
-  X_mat = as.matrix(aux[, -1])
+  X = data.frame(aux[, -c(1:forecast_horizon)])
+  X_mat = as.matrix(aux[,-c(1:forecast_horizon)])
   
   train_df = data.frame(y, X)
   
@@ -102,6 +102,10 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   return(best_model_lag)
 }
 
+# Test cases
+best_model = fitAR(65,"Q4",stat_gdp,2,8)
+best_model
+
 test = fitAR(65, "Q4", stat_gdp, 2, 2)
 test
 
@@ -111,6 +115,4 @@ test
 for (i in 65:99){
   print(fitAR(i, "Q4", stat_gdp, 1, 8))
 }
-
-fitAR("70","Q4",stat_gdp,4,10)
 
