@@ -691,54 +691,115 @@ server <- function(input, output, session) {
     
     print(true_df)
     
+    # making point forecasts using AR model
+    ar_one_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 1, 8)
+    ar_two_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 2, 8)
+    ar_three_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 3, 8)
+    ar_four_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 4, 8)
+    ar_five_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 5, 8)
+    ar_six_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 6, 8)
+    ar_seven_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 7, 8)
+    ar_eight_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 8, 8)
+    
+    ar_one_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 1, ar_one_step_best_model_lag)
+    ar_two_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 2, ar_two_step_best_model_lag)
+    ar_three_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 3, ar_three_step_best_model_lag)
+    ar_four_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 4, ar_four_step_best_model_lag)
+    ar_five_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 5, ar_five_step_best_model_lag)
+    ar_six_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 6, ar_six_step_best_model_lag)
+    ar_seven_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 7, ar_seven_step_best_model_lag)
+    ar_eight_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 8, ar_eight_step_best_model_lag)
+    
+    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+    ar_forecast_df = data.frame(DATE = forecast_seq_dates, 
+                                point_forecast = c(ar_one_step_ahead_point_forecast, 
+                                                   ar_two_step_ahead_point_forecast, 
+                                                   ar_three_step_ahead_point_forecast, 
+                                                   ar_four_step_ahead_point_forecast, 
+                                                   ar_five_step_ahead_point_forecast, 
+                                                   ar_six_step_ahead_point_forecast,
+                                                   ar_seven_step_ahead_point_forecast, 
+                                                   ar_eight_step_ahead_point_forecast), 
+                                Category = "C")
+    ar_aux_df = data.frame(DATE = x_intercept, 
+                           point_forecast = (stat_df %>%
+                                               select(DATE, reference_col) %>%
+                                               filter(DATE == x_intercept) %>%
+                                               pull(reference_col)), 
+                           Category = "C")
+    
+    ar_forecast_df = rbind(ar_aux_df, ar_forecast_df)
+    
+    # making the point forecast for ADL
+    adl_one_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, 8)
+    adl_two_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, 8)
+    adl_three_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, 8)
+    adl_four_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, 8)
+    adl_five_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, 8)
+    adl_six_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, 8)
+    adl_seven_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, 8)
+    adl_eight_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, 8)
+    
+    adl_one_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, adl_one_step_best_model$routput_lag, adl_one_step_best_model$hstart_lag)
+    adl_two_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, adl_two_step_best_model$routput_lag, adl_two_step_best_model$hstart_lag)
+    adl_three_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, adl_three_step_best_model$routput_lag, adl_three_step_best_model$hstart_lag)
+    adl_four_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, adl_four_step_best_model$routput_lag, adl_four_step_best_model$hstart_lag)
+    adl_five_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, adl_five_step_best_model$routput_lag, adl_five_step_best_model$hstart_lag)
+    adl_six_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, adl_six_step_best_model$routput_lag, adl_six_step_best_model$hstart_lag)
+    adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
+    adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
+    
+    adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)
+    adl_two_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_two_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
+    adl_three_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_three_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 3, 8)
+    adl_four_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_four_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 4, 8)
+    adl_five_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_five_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 5, 8)
+    adl_six_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_six_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 6, 8)
+    adl_seven_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_seven_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 7, 8)
+    adl_eight_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_eight_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 8, 8)
+    
+    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+    adl_forecast_df = data.frame(DATE = forecast_seq_dates,
+                                 point_forecast = c(adl_one_step_ahead_point_forecast$fit, 
+                                                    adl_two_step_ahead_point_forecast$fit, 
+                                                    adl_three_step_ahead_point_forecast$fit,
+                                                    adl_four_step_ahead_point_forecast$fit,
+                                                    adl_five_step_ahead_point_forecast$fit,
+                                                    adl_six_step_ahead_point_forecast$fit,
+                                                    adl_seven_step_ahead_point_forecast$fit,
+                                                    adl_eight_step_ahead_point_forecast$fit), 
+                                 rmse = c(adl_one_step_ahead_rmse, 
+                                          adl_two_step_ahead_rmse,
+                                          adl_three_step_ahead_rmse,
+                                          adl_four_step_ahead_rmse,
+                                          adl_five_step_ahead_rmse, 
+                                          adl_six_step_ahead_rmse, 
+                                          adl_seven_step_ahead_rmse,
+                                          adl_eight_step_ahead_rmse),
+                                 Category = "D")
+    
+    adl_aux_df = data.frame(DATE = x_intercept, 
+                            point_forecast = (stat_df %>%
+                                                select(DATE, reference_col) %>%
+                                                filter(DATE == x_intercept) %>%
+                                                pull(reference_col)),
+                            rmse = 1,
+                            Category = "D")
+    adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
+    
     if (input$model_choice == "AR"){
-      # making point forecasts using AR model
-      ar_one_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 1, 8)
-      ar_two_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 2, 8)
-      ar_three_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 3, 8)
-      ar_four_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 4, 8)
-      ar_five_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 5, 8)
-      ar_six_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 6, 8)
-      ar_seven_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 7, 8)
-      ar_eight_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 8, 8)
       
-      ar_one_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 1, ar_one_step_best_model_lag)
-      ar_two_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 2, ar_two_step_best_model_lag)
-      ar_three_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 3, ar_three_step_best_model_lag)
-      ar_four_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 4, ar_four_step_best_model_lag)
-      ar_five_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 5, ar_five_step_best_model_lag)
-      ar_six_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 6, ar_six_step_best_model_lag)
-      ar_seven_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 7, ar_seven_step_best_model_lag)
-      ar_eight_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 8, ar_eight_step_best_model_lag)
-      
-      forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
-      forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
-      ar_forecast_df = data.frame(DATE = forecast_seq_dates, 
-                               point_forecast = c(ar_one_step_ahead_point_forecast, 
-                                                  ar_two_step_ahead_point_forecast, 
-                                                  ar_three_step_ahead_point_forecast, 
-                                                  ar_four_step_ahead_point_forecast, 
-                                                  ar_five_step_ahead_point_forecast, 
-                                                  ar_six_step_ahead_point_forecast,
-                                                  ar_seven_step_ahead_point_forecast, 
-                                                  ar_eight_step_ahead_point_forecast), 
-                               Category = "C")
-      ar_aux_df = data.frame(DATE = x_intercept, 
-                          point_forecast = (stat_df %>%
-                                              select(DATE, reference_col) %>%
-                                              filter(DATE == x_intercept) %>%
-                                              pull(reference_col)), 
-                          Category = "C")
-      
-      ar_forecast_df = rbind(ar_aux_df, ar_forecast_df)
-      
-      
+      if (input$alpha == "50%") {
+        alpha = 0.5
+        z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      }
+
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
       true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
       ar_forecast_df$tooltip <- paste("Date:", ar_forecast_df$DATE, "<br>Forecast:", round(ar_forecast_df$point_forecast, 2))
-      
-      
       
       gg <- ggplot() +
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
@@ -761,69 +822,10 @@ server <- function(input, output, session) {
       
     } else if (input$model_choice == "ADL") {
       
-      adl_one_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, 8)
-      adl_two_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, 8)
-      adl_three_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, 8)
-      adl_four_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, 8)
-      adl_five_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, 8)
-      adl_six_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, 8)
-      adl_seven_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, 8)
-      adl_eight_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, 8)
-      
-      adl_one_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, adl_one_step_best_model$routput_lag, adl_one_step_best_model$hstart_lag)
-      adl_two_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, adl_two_step_best_model$routput_lag, adl_two_step_best_model$hstart_lag)
-      adl_three_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, adl_three_step_best_model$routput_lag, adl_three_step_best_model$hstart_lag)
-      adl_four_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, adl_four_step_best_model$routput_lag, adl_four_step_best_model$hstart_lag)
-      adl_five_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, adl_five_step_best_model$routput_lag, adl_five_step_best_model$hstart_lag)
-      adl_six_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, adl_six_step_best_model$routput_lag, adl_six_step_best_model$hstart_lag)
-      adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
-      adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
-      
-      adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)
-      adl_two_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_two_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
-      adl_three_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_three_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 3, 8)
-      adl_four_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_four_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 4, 8)
-      adl_five_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_five_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 5, 8)
-      adl_six_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_six_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 6, 8)
-      adl_seven_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_seven_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 7, 8)
-      adl_eight_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_eight_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 8, 8)
-      
-      forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
-      forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
-      adl_forecast_df = data.frame(DATE = forecast_seq_dates,
-                                   point_forecast = c(adl_one_step_ahead_point_forecast$fit, 
-                                                      adl_two_step_ahead_point_forecast$fit, 
-                                                      adl_three_step_ahead_point_forecast$fit,
-                                                      adl_four_step_ahead_point_forecast$fit,
-                                                      adl_five_step_ahead_point_forecast$fit,
-                                                      adl_six_step_ahead_point_forecast$fit,
-                                                      adl_seven_step_ahead_point_forecast$fit,
-                                                      adl_eight_step_ahead_point_forecast$fit), 
-                                   rmse = c(adl_one_step_ahead_rmse, 
-                                            adl_two_step_ahead_rmse,
-                                            adl_three_step_ahead_rmse,
-                                            adl_four_step_ahead_rmse,
-                                            adl_five_step_ahead_rmse, 
-                                            adl_six_step_ahead_rmse, 
-                                            adl_seven_step_ahead_rmse,
-                                            adl_eight_step_ahead_rmse),
-                                   Category = "D")
-
-      adl_aux_df = data.frame(DATE = x_intercept, 
-                          point_forecast = (stat_df %>%
-                                              select(DATE, reference_col) %>%
-                                              filter(DATE == x_intercept) %>%
-                                              pull(reference_col)),
-                          rmse = 1,
-                          Category = "D")
-      adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
-      
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
       true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
       adl_forecast_df$tooltip <- paste("Date:", adl_forecast_df$DATE, "<br>Forecast:", round(adl_forecast_df$point_forecast, 2))
-      
-      
       
       gg <- ggplot() +
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
