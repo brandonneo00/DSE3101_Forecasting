@@ -83,8 +83,8 @@ x3 = "8Q"
 #test
 
 
-#reticulate::source_python("rf_backtesting.py")
-#rf_backtest = back_pred("2010", "Q3", "8Q", as.integer(5))
+reticulate::source_python("rf_backtesting.py")
+#rf_backtest = back_pred("2010", "Q1", "8Q", as.integer(5))
 #rf_backtest
 #unlist(rf_backtest)
 vector_test = c(1,2,3,4,5,6,7,8,9,10,11)
@@ -752,13 +752,13 @@ average_backtest <- function(vintage_year, vintage_quarter, optimal_adl_model, r
   #rf_predictions_vector <- RFbacktest(parameters)
   print(rf_predictions_vector)
   
-  df = data.frame(ar_prediction = ar_predictions_vector,
-                  adl_prediction = adl_predictions_vector,
-                  rf_prediction = rf_predictions_vector,
-                  actual_value = actual_values)
-  df = df %>% 
-    mutate(average_prediction = mean(ar_prediction + adl_prediction + rf_prediction)) %>%
-    mutate(sq_error = actual_value - average_prediction)
+  #df = data.frame(ar_prediction = ar_predictions_vector,
+  #                adl_prediction = adl_predictions_vector,
+  #                rf_prediction = rf_predictions_vector,
+  #                actual_value = actual_values)
+  #df = df %>% 
+  #  mutate(average_prediction = mean(ar_prediction + adl_prediction + rf_prediction)) %>%
+  #  mutate(sq_error = actual_value - average_prediction)
   
   average_predictions <- (rf_predictions_vector+ adl_predictions_vector + ar_predictions_vector) / 3
   mse <- mean((actual_values-average_predictions)^2)
@@ -776,12 +776,12 @@ average_backtest <- function(vintage_year, vintage_quarter, optimal_adl_model, r
 
 library(reticulate)
 #reticulate::source_python("rf_feature_importance.py")
-#randomforest = rf("2010", "Q1", "8Q")
+##randomforest = rf("2010", "Q1", "8Q")
 #test_ar_model = fitAR_model("10", "Q1", stat_gdp, 2, 8)
 #test_ar_backtesting = ARBacktest("10", "Q1", test_ar_model, stat_gdp, gdp_date, 2, 8)
 #test_adl_model = fit_adl("10", "Q1", stat_gdp, hstart_gdp, 2, 8)
-#?ADLbacktest
-#adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
+
+##adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
 
 #test_adl_model
 #test_adl_backtesting = ADLbacktest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
@@ -982,7 +982,8 @@ server <- function(input, output, session) {
     adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
     
     # Random Forest Forecast
-    rf_point_forecast_vector = rf(reference_year, reference_quarter, "8Q")
+    reticulate::source_python("rf_feature_importance.py")
+    rf_point_forecast_vector = rf(paste(input$year, sep=""), reference_quarter, "8Q")
     rf_forecast_df = data.frame(DATE = forecast_seq_dates, 
                                 point_forecast = rf_point_forecast_vector)
     print(rf_forecast_df)
