@@ -9,6 +9,7 @@
 library(shiny)
 library(plotly)
 library(readxl)
+library(tidyverse)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -812,7 +813,7 @@ ui <- fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel("Time Series", plotlyOutput("line_plot"), textOutput("plot_description")),
+        tabPanel("Time Series", plotlyOutput("line_plot"), textOutput("plot_description"), plotOutput("rf_feature_importance")),
         tabPanel("Table", DT::DTOutput("dt_table")),
       )
       
@@ -1131,19 +1132,101 @@ Hence, our project endeavors to construct and assess resilient forecasting model
   })
   
   output$plot_description <- renderText({
-    title <- "Plot Description"
-    description <- "We used an autoregressive (AR) model to forecast GDP values. In this case, GDP values are being forecasted based on their own past values.
+    if (input$model_choice == "AR"){
+      title <- "Plot Description"
+      description <- "We used an autoregressive (AR) model to forecast GDP values. In this case, GDP values are being forecasted based on their own past values.
     In our model, through estimating the optimal lag lengths, it selects the most relevant past GDP values to predict future trends."
-    paste(title, description, sep = ": ")
+      paste(title, description, sep = ": ")
+    }
+
   })
   
-  
+  output$rf_feature_importance = renderPlot({
+    if (input$model_choice == "Random Forest"){
+      lines <- readLines("./rf_feature_importance_plot/impt.txt")
+      impt <- lapply(lines,function(line) strsplit(line,", ")[[1]])
+      lines2 <- readLines("./rf_feature_importance_plot/name.txt")
+      names<- lapply(lines2,function(line) strsplit(line,", ")[[1]])
+      
+      name1<- names[[1]]
+      n1 <- impt[[1]]
+      n2 <- impt[[2]]
+      n3 <- impt[[3]]
+      n4 <- impt[[4]]
+      n5 <- impt[[5]]
+      n6 <- impt[[6]]
+      n7 <- impt[[7]]
+      n8 <- impt[[8]]
+      
+      df <- data.frame(name1 = name1,
+                       n1 = n1,
+                       n2 = n2,
+                       n3 = n3,
+                       n4 = n4,
+                       n5 = n5,
+                       n6 = n6,
+                       n7 = n7,
+                       n8 = n8)
+      
+      # Transpose the dataframe and gather the columns
+      transposed_df <- df %>%
+        pivot_longer(cols = -name1, names_to = "category", values_to = "value") %>%
+        mutate(category = sub("n", "", category),
+               category = paste0("t+", category)) %>%
+        pivot_wider(names_from = name1, values_from = value)
+      
+      name3 <- sort(names(transposed_df))
+      
+      
+      convert_to_numeric <- function(x) {
+        if (!identical(x, 'category')) {
+          as.numeric(x)
+        } else {
+          x
+        }
+      }
+      
+      numeric_df <- transposed_df %>%
+        mutate_at(vars(-category), convert_to_numeric)
+      
+      # Mutate the columns to add them together or rename them based on the provided mapping
+      mutated_df <- numeric_df %>%
+        mutate(`Private Investment` = rinvbf + rinvchi,
+               `Consumption` = RCONS + rconhh + rconsnp,
+               `CPI` = CPI + P,
+               `Industrial Production Index` = IPT,
+               `Housing` = HSTARTS + rinvresid,
+               `Labour Market/Productivity` = LFC + LFPART + POP + OPH + RUC,
+               `Monetary` = M1,
+               `Personal Income` = WSD + OLI + PINTI + PINTPAID + PROPI + PTAX,
+               `Investment/Saving` = PTAX + rinvbf + rinvchi + rinvresid +RATESAV,
+               `Export/Import` = RNX + REX + RIMP,
+               `Govt Expenditure` = RG +RGF +RGSL,
+               `GDP` = ROUTPUT) %>%
+        select(-rinvbf, -rinvchi, -RCONS, -rconhh, -rconsnp, -CPI, -P, -IPT, 
+               -HSTARTS, -rinvresid, -LFC, -LFPART, -POP, -OPH, -RUC, -M1, 
+               -WSD, -OLI, -PINTI, -PINTPAID, -PROPI, -PTAX, -RNX, -REX, -RIMP, -ROUTPUT,-RATESAV
+               ,-RG,-RGF,-RGSL)
+      
+      
+      long_df <- tidyr::pivot_longer(mutated_df, cols = -category, names_to = "t", values_to = "value")
+      
+      # Plot stacked bar chart
+      ggplot(long_df, aes(x = category, y = value, fill = t)) +
+        geom_bar(stat = "identity") +
+        labs(x = "Category", y = "Feature Importance", fill = "Time") +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    }
+  })
   
   
 }
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+
+
 
 
 
