@@ -24,11 +24,11 @@ library(dynlm)
 
 # Read the Excel file using the correct file path
 path_to_data = "../ROUTPUTQvQd.xlsx"
-gdp <- read_excel(path_to_data, col_names = TRUE)
+gdp_raw <- read_excel(path_to_data, col_names = TRUE)
 # Convert all columns except the first one (which contains dates) to numeric, keeping NA values as NA 
-gdp_num <- gdp[, 2:ncol(gdp)]
+gdp_num <- gdp_raw[, 2:ncol(gdp_raw)]
 gdp_num <- mutate_all(gdp_num, as.numeric) 
-gdp_date <-gdp[,1]
+gdp_date <-gdp_raw[,1]
 
 
 # Repeat the transformation code for each column in gdp_num 
@@ -75,12 +75,14 @@ library(reticulate)
 #py_install("scikit-learn")
 #py_install("matplotlib")
 #py_install("openpyxl")
-#reticulate::source_python("RandomForestTS.py")
+reticulate::source_python("RandomForestTS.py")
 #x1 = "2023"
 #x2 = "Q1"
 #x3 = "8Q"
 #test = rf(x1, x2, x3)
 #test
+
+#backtest = back_pred("2010", "Q3", "8Q", 5)
 
 
 # function to find optimal lags for AR
@@ -556,6 +558,7 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
   
   starting_row_index <- row_index - 50 - forecast_horizon
   count <- 0 
+  return_list <- list()
   while(count < 50){
     hstart_values <- c()
     routput_values <- c()
@@ -577,14 +580,16 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
     count = count + 1
   }
   mse <- mean((actual_values-prediction_values)^2)
+  return_list$predictions <- prediction_values
   rmse <- sqrt(mse)
-  return(rmse)
-  
+  return_list$rmse <-rmse
+  return_list$actual_values <- actual_values
+  return(return_list)
+  ### 
 }
 
 #adl_backtest1 = ADLbacktest("13", "Q3", stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 6)
 #adl_backtest1
-
 
 routput <- read_excel('../ROUTPUTQvQd.xlsx')
 routput <- routput %>%
@@ -775,14 +780,14 @@ server <- function(input, output, session) {
     adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
     adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
     
-    adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)
-    adl_two_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_two_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
-    adl_three_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_three_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 3, 8)
-    adl_four_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_four_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 4, 8)
-    adl_five_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_five_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 5, 8)
-    adl_six_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_six_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 6, 8)
-    adl_seven_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_seven_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 7, 8)
-    adl_eight_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_eight_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 8, 8)
+    adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
+    adl_two_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_two_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)$rmse
+    adl_three_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_three_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 3, 8)$rmse
+    adl_four_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_four_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 4, 8)$rmse
+    adl_five_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_five_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 5, 8)$rmse
+    adl_six_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_six_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 6, 8)$rmse
+    adl_seven_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_seven_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 7, 8)$rmse
+    adl_eight_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_eight_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 8, 8)$rmse
     
     forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
     forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
@@ -813,6 +818,8 @@ server <- function(input, output, session) {
                             rmse = 1,
                             Category = "D")
     adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
+    
+    # Random Forest Forecast
     
     
     if (input$model_choice == "AR"){
@@ -892,9 +899,6 @@ server <- function(input, output, session) {
       
     }
 
-    
-    
-    
   })
   
   
