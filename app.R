@@ -76,13 +76,18 @@ library(reticulate)
 #py_install("matplotlib")
 #py_install("openpyxl")
 reticulate::source_python("RandomForestTS.py")
-#x1 = "2023"
-#x2 = "Q1"
-#x3 = "8Q"
-#test = rf(x1, x2, x3)
-#test
+x1 = "2023"
+x2 = "Q1"
+x3 = "8Q"
+test = rf(x1, x2, x3)
+test
 
-#backtest = back_pred("2010", "Q3", "8Q", 5)
+
+#reticulate::source_python("rf_backtesting.py")
+#rf_backtest = back_pred("2010", "Q3", "8Q", as.integer(5))
+#rf_backtest
+#View(rf_backtest)
+#rf_backtest[1]
 
 
 # function to find optimal lags for AR
@@ -820,7 +825,10 @@ server <- function(input, output, session) {
     adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
     
     # Random Forest Forecast
-    
+    rf_point_forecast_vector = rf(reference_year, reference_quarter, "8Q")
+    rf_forecast_df = data.frame(DATE = forecast_seq_dates, 
+                                point_forecast = rf_point_forecast_vector)
+    print(rf_forecast_df)
     
     if (input$model_choice == "AR"){
 
@@ -895,6 +903,43 @@ server <- function(input, output, session) {
       
       print("hello ADL")
       print(adl_forecast_df)
+      return(plotly_plot)
+      
+    } else if (input$model_choice == "Random Forest"){
+      print("hello random forest")
+      print(rf_forecast_df)
+      
+      # Prepare the tooltip content for each dataset
+      subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
+      true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
+      rf_forecast_df$tooltip <- paste("Date:", rf_forecast_df$DATE, "<br>Forecast:", round(rf_forecast_df$point_forecast, 2))
+      
+      gg <- ggplot() +
+        #Historical Values before Vintage Point
+        geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
+        #Clean Values from very last Vintage
+        geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+        #Forecasted Point Forecast OOS
+        geom_point(data = rf_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = adl_forecast_df$tooltip), show.legend = TRUE) +
+        geom_line(data = rf_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
+        geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
+        #Lower Bound for fanchart
+        #geom_point(data = rf_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        #geom_line(data = rf_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        #Upper Bound for fanchart
+        #geom_point(data = rf_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        #geom_line(data = rf_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        #X intercept
+        geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
+        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        scale_x_yearqtr(format = "%Y Q%q") +
+        scale_color_manual(values = c("Historical Change" = "black", "Actual Change" = "chartreuse2", "Forecasted Change" = "blue"),
+                           name = "Legend Name") +
+        theme(plot.title = element_text(hjust = 0.5), 
+              legend.position = "bottom") +
+        guides(color = guide_legend(title = "Legend Name"))
+      
+      plotly_plot <- ggplotly(gg, tooltip = "text")
       return(plotly_plot)
       
     }
