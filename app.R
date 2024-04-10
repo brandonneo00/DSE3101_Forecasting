@@ -75,17 +75,20 @@ library(reticulate)
 #py_install("scikit-learn")
 #py_install("matplotlib")
 #py_install("openpyxl")
-reticulate::source_python("RandomForestTS.py")
+reticulate::source_python("rf_feature_importance.py")
 x1 = "2023"
 x2 = "Q1"
 x3 = "8Q"
-test = rf(x1, x2, x3)
-test
+#test = rf(x1, x2, x3)
+#test
 
 
 #reticulate::source_python("rf_backtesting.py")
 #rf_backtest = back_pred("2010", "Q3", "8Q", as.integer(5))
 #rf_backtest
+#unlist(rf_backtest)
+vector_test = c(1,2,3,4,5,6,7,8,9,10,11)
+vector_test
 #View(rf_backtest)
 #rf_backtest[1]
 
@@ -530,7 +533,29 @@ adl_forecast1 = getADLForecast(10, "Q4", stat_gdp, hstart_gdp, 2, adl$routput_la
 adl_forecast1
 adl_forecast$fit
 
-predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, routput_values, hstart_values){
+ar_predict_function <- function(model, optimal_lag_routput, routput_values) {
+  coefficients <- coef(model)
+  # Extracting intercept and lag coefficients
+  intercept <- coefficients[1]
+  lag_coefficients <- coefficients[2:(optimal_lag_routput + 1)]
+  
+  # Calculating prediction
+  prediction <- intercept + sum(lag_coefficients * routput_values)
+  return(routput_values)
+}
+
+# Assuming you have already fitted the AR model using fitAR_model function
+ar_model <- fitAR_model(65, "Q4", stat_gdp, 2, 8)
+ar_model
+ar_test
+
+#model = fitAR_model(65, "Q4", stat_gdp, 2, 8)
+# Now you can use the predict_function with the fitted model
+predictions <- ar_predict_function(ar_model, ar_test, stat_gdp)
+predictions
+
+
+adl_predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, routput_values, hstart_values){
   #print(routput_values)
   intercept <- coef(model)[1]
   coefficients_routput <- coef(model)[2:(2+optimal_lag_routput-1)]
@@ -539,6 +564,56 @@ predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, rou
   return(prediction)
   
 }
+
+
+
+ARBacktest <- function(vintage_year, vintage_quarter, model, routput_gdp, routput_date, forecast_horizon, max_lags) {
+  optimal_lag <- length(coef(model))-1
+  
+  col_prefix <- "ROUTPUT"
+  reference_col <- paste(col_prefix, vintage_year, vintage_quarter, sep="")
+  print(reference_col)
+  column_index <- which(names(routput_gdp) == reference_col)
+  print(column_index)
+  
+  routput_column <- routput_gdp[, column_index]
+  
+  last_column <- routput_gdp[, ncol(routput_gdp)]
+  prediction_values <- c()
+  actual_values <- c()
+  
+  full_year <- convert_to_full_year(vintage_year)
+  starting_index_string <- paste(full_year, ":", vintage_quarter, sep="")
+  row_index <- which(routput_date$DATE == starting_index_string)
+  starting_row_index <- row_index - 50 - forecast_horizon
+  count <- 0
+  return_list <- list()
+  
+  while (count < 50) {
+    lagged_values <- c()
+    
+    for (i in 1:optimal_lag) {
+      starting_row <- starting_row_index + count
+      lagged_values <- c(lagged_values, routput_column[starting_row - forecast_horizon - i])
+    }
+    
+    prediction <- ar_predict_function(model = model, optimal_lag_routput = optimal_lag, routput_values = lagged_values)
+    
+    actual_values <- c(actual_values, last_column[starting_row_index + count])
+    prediction_values <- c(prediction_values, prediction)
+    count <- count + 1
+  }
+  
+  mse <- mean((actual_values - prediction_values)^2)
+  rmse <- sqrt(mse)
+  return_list$rmse <- rmse
+  return_list$predictions<- prediction_values
+  
+  return(return_list)
+}
+
+
+ARBacktest("85", "Q3", ar_model, stat_gdp, gdp_date, 2, 6)
 
 ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
   #adl <- fit_adl(vintage_year, vintage_quarter, routput_gdp, hstart_gdp, forecast_horizon, max_lags)
@@ -579,7 +654,7 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
       hstart_values <- c(hstart_values, hstart_column[starting_row_hstart-forecast_horizon-i])
     }
     
-    prediction <- predict_function(model=model, optimal_lag_routput=optimal_routput_lag, optimal_lag_hstart=optimal_hstart_lag, routput_values=routput_values, hstart_values=hstart_values)
+    prediction <- adl_predict_function(model=model, optimal_lag_routput=optimal_routput_lag, optimal_lag_hstart=optimal_hstart_lag, routput_values=routput_values, hstart_values=hstart_values)
     actual_values <- c(actual_values, last_column[starting_row_index+count])
     prediction_values <- c(prediction_values, prediction)
     count = count + 1
@@ -635,6 +710,88 @@ optimallag <- as.numeric(gsub("[^0-9]", "", best_model))
 
 a = getForecast(65,"Q4",stat_gdp,1)
 print(a)
+
+
+# For forecast combination model
+average_backtest <- function(vintage_year, vintage_quarter, optimal_adl_model, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
+  actual_values <- c()
+  last_column = routput_gdp[,ncol(routput_gdp)]
+  full_year <- convert_to_full_year(vintage_year)
+  starting_index_string <- paste(full_year, ":", vintage_quarter, sep="")
+  print(starting_index_string)
+  row_index <- which(routput_date$DATE == starting_index_string)
+  starting_row_index <- row_index - 50 - forecast_horizon
+  count <- 0 
+  
+  actual_values <- c(actual_values, last_column[starting_row_index+count])
+  
+  while(count < 50){
+    actual_values <- c(actual_values, last_column[starting_row_index+count])
+    count = count + 1
+  }
+  
+  #vintage year is the last two digit of YYYY
+  print("this is adl backtest")
+  adl_backtest <- ADLbacktest(vintage_year, vintage_quarter, optimal_adl_model, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags)
+  adl_predictions_vector <- adl_backtest$predictions
+  
+  
+  print("this is ar backtest")
+  print("ar model line")
+  ar_model <- fitAR_model(vintage_year, vintage_quarter, routput_gdp, forecast_horizon, max_lags)
+  print("ar backtest line")
+  ar_backtest <- ARBacktest(vintage_year, vintage_quarter, ar_model, routput_gdp, routput_date, forecast_horizon, max_lags)
+  print("ar predictions vector line")
+  ar_predictions_vector <- ar_backtest$predictions
+  
+  print("this rf")
+  rf_vintage_year = paste("20", vintage_year, sep="")
+  reticulate::source_python("rf_backtesting.py")
+  rf_predictions = back_pred(rf_vintage_year, vintage_quarter, "8Q", as.integer(5))
+  rf_predictions_vector = unlist(rf_predictions)
+  #rf_predictions_vector <- RFbacktest(parameters)
+  print(rf_predictions_vector)
+  
+  df = data.frame(ar_prediction = ar_predictions_vector,
+                  adl_prediction = adl_predictions_vector,
+                  rf_prediction = rf_predictions_vector,
+                  actual_value = actual_values)
+  df = df %>% 
+    mutate(average_prediction = mean(ar_prediction + adl_prediction + rf_prediction)) %>%
+    mutate(sq_error = actual_value - average_prediction)
+  
+  average_predictions <- (rf_predictions_vector+ adl_predictions_vector + ar_predictions_vector) / 3
+  mse <- mean((actual_values-average_predictions)^2)
+  return_list = list()
+  rmse <- sqrt(mse)
+  return_list$actual_values = actual_values
+  return_list$rf_predictions_vector = rf_predictions_vector
+  return_list$adl_predictions_vector = adl_predictions_vector
+  return_list$ar_predictions_vector = ar_predictions_vector
+  return_list$rmse = rmse
+  return_list$average_predictions
+  return(return_list)
+   
+}
+
+library(reticulate)
+#reticulate::source_python("rf_feature_importance.py")
+#randomforest = rf("2010", "Q1", "8Q")
+#test_ar_model = fitAR_model("10", "Q1", stat_gdp, 2, 8)
+#test_ar_backtesting = ARBacktest("10", "Q1", test_ar_model, stat_gdp, gdp_date, 2, 8)
+#test_adl_model = fit_adl("10", "Q1", stat_gdp, hstart_gdp, 2, 8)
+#?ADLbacktest
+#adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
+
+#test_adl_model
+#test_adl_backtesting = ADLbacktest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
+#average_backtest_test_result = average_backtest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
+#average_backtest_test_result
+#average_backtest_test_result$actual_values
+#average_backtest_test_result$rf_predictions_vector
+#average_backtest_test_result$adl_predictions_vector
+#average_backtest_test_result$ar_predictions_vector
+#average_backtest_test_result$average_predictions
 
 ui <- fluidPage(
   
@@ -829,6 +986,7 @@ server <- function(input, output, session) {
     rf_forecast_df = data.frame(DATE = forecast_seq_dates, 
                                 point_forecast = rf_point_forecast_vector)
     print(rf_forecast_df)
+    
     
     if (input$model_choice == "AR"){
 
