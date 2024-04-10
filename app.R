@@ -268,9 +268,12 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
   
   subset_routput_df = as.matrix(routput_df[,column_index])
   subset_hstart_df = match_quarter_to_month(reference_col, hstart_df)
+  
+  routput_start <- find_quarter_year(routput_df[,column_index])
+  hstart_start <- find_quarter_year(subset_hstart_df)
   # print(subset_hstart_df)
-  routput_ts <- ts(na.omit(subset_routput_df), start=c(1947,1), frequency = 4)
-  hstart_ts <- ts(na.omit(subset_hstart_df), start=c(1947,1), frequency=4)
+  routput_ts <- ts(na.omit(subset_routput_df), start=c(routput_start$year,routput_start$quarter), frequency = 4)
+  hstart_ts <- ts(na.omit(subset_hstart_df), start=c(hstart_start$year, hstart_start$quarter), frequency=4)
   
   optimal_model <- list()
   
@@ -663,6 +666,13 @@ server <- function(input, output, session) {
     #to form the colname required to subset from the dataframe
     reference_col = paste(col_prefix, reference_year, reference_quarter, sep="")
     
+    if (input$alpha == "50%") {
+      alpha = 0.5
+    } else if (input$alpha == "80%"){
+      alpha = 0.2
+    } else if (input$alpha == "90%"){
+      alpha = 0.1
+    }
     
     print(reference_col)
     
@@ -804,19 +814,8 @@ server <- function(input, output, session) {
                             Category = "D")
     adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
     
+    
     if (input$model_choice == "AR"){
-      if (input$alpha == "50%") {
-        alpha = 0.5
-      } else if (input$alpha == "80"){
-        alpha = 0.8
-      } else if (input$alpha == "90%"){
-        alpha = 0.9
-      }
-      
-      #z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
-      #ar_forecast_df = ar_forecast_df %>%
-      #  mutate(lower_forecast = point_forecast - z_crit_value*rmse, 
-      #         upper_forecast = point_forecast + z_crit_value*rmse)
 
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
@@ -848,17 +847,34 @@ server <- function(input, output, session) {
       
     } else if (input$model_choice == "ADL") {
       
+      z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      print(z_crit_value)
+      adl_forecast_df = adl_forecast_df %>%
+        mutate(lower_forecast = point_forecast - z_crit_value*rmse, 
+               upper_forecast = point_forecast + z_crit_value*rmse)
+      print(adl_forecast_df)
+      
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
       true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
       adl_forecast_df$tooltip <- paste("Date:", adl_forecast_df$DATE, "<br>Forecast:", round(adl_forecast_df$point_forecast, 2))
       
       gg <- ggplot() +
+        #Historical Values before Vintage Point
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
+        #Clean Values from very last Vintage
         geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+        #Forecasted Point Forecast OOS
         geom_point(data = adl_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = adl_forecast_df$tooltip), show.legend = TRUE) +
         geom_line(data = adl_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
         geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
+        #Lower Bound for fanchart
+        geom_point(data = adl_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        geom_line(data = adl_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        #Upper Bound for fanchart
+        geom_point(data = adl_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        geom_line(data = adl_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
         labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
