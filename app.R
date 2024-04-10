@@ -246,7 +246,22 @@ fitAR_model = function(vintage_year, vintage_quarter, df, forecast_horizon, max_
 }
 
 # function that returns the optimal ADL model
+find_quarter_year <- function(input_vec){
+  return_list <- list()
+  first_non_na_index <- which(!is.na(input_vec))[1]
+  start_year <- 1947
+  quarters_per_year <- 4 
+  actual_year <- start_year + (first_non_na_index-1) %/% quarters_per_year
+  actual_quarter <- (first_non_na_index-1)%% quarters_per_year + 1
+  return_list$year <- actual_year
+  return_list$quarter <- actual_quarter
+  return(return_list)
+}
+
+
+
 fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, forecast_horizon, max_lags){
+  
   col_prefix = "ROUTPUT"
   reference_col = paste(col_prefix, vintage_year, vintage_quarter, sep="")
   column_index <- which(names(routput_df) == reference_col)
@@ -790,11 +805,18 @@ server <- function(input, output, session) {
     adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
     
     if (input$model_choice == "AR"){
-      
       if (input$alpha == "50%") {
         alpha = 0.5
-        z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      } else if (input$alpha == "80"){
+        alpha = 0.8
+      } else if (input$alpha == "90%"){
+        alpha = 0.9
       }
+      
+      #z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      #ar_forecast_df = ar_forecast_df %>%
+      #  mutate(lower_forecast = point_forecast - z_crit_value*rmse, 
+      #         upper_forecast = point_forecast + z_crit_value*rmse)
 
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
@@ -802,11 +824,15 @@ server <- function(input, output, session) {
       ar_forecast_df$tooltip <- paste("Date:", ar_forecast_df$DATE, "<br>Forecast:", round(ar_forecast_df$point_forecast, 2))
       
       gg <- ggplot() +
+        #Historical Values before Vintage Point
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
+        #Clean Values from very last Vintage
         geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
         geom_point(data = ar_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = ar_forecast_df$tooltip), show.legend = TRUE) +
+        #Forecasted Point Forecast OOS
         geom_line(data = ar_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
         geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
+        #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
         labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
