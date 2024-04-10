@@ -100,12 +100,12 @@ library(reticulate)
 #py_install("scikit-learn")
 #py_install("matplotlib")
 #py_install("openpyxl")
-reticulate::source_python("RandomForestTS.py")
-x1 = "2023"
-x2 = "Q1"
-x3 = "8Q"
-test = rf(x1, x2, x3)
-test
+#reticulate::source_python("RandomForestTS.py")
+#x1 = "2023"
+#x2 = "Q1"
+#x3 = "8Q"
+#test = rf(x1, x2, x3)
+#test
 
 
 # function to find optimal lags for AR
@@ -189,6 +189,9 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   #return(best_model_lag)
   return(as.numeric(gsub("[^0-9]", "", best_model_lag)))
 }
+
+ar_test = fitAR(65, "Q4", stat_gdp, 2, 8)
+ar_test
 
 # Variation of fitAR model that returns the model itself
 fitAR_model = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
@@ -532,6 +535,8 @@ getADLForecast <- function(vintage_year, vintage_quarter, routput_gdp, hstart_gd
 
 adl_forecast = getADLForecast(10, "Q4", stat_gdp, hstart_gdp, 1, adl$routput_lag, adl$hstart_lag)
 adl_forecast
+adl_forecast1 = getADLForecast(10, "Q4", stat_gdp, hstart_gdp, 2, adl$routput_lag, adl$hstart_lag)
+adl_forecast1
 adl_forecast$fit
 
 predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, routput_values, hstart_values){
@@ -544,7 +549,7 @@ predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, rou
   
 }
 
-backtest <- function(vintage_year, vintage_quarter, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
+ADLbacktest <- function(vintage_year, vintage_quarter, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
   adl <- fit_adl(vintage_year, vintage_quarter, routput_gdp, hstart_gdp, forecast_horizon, max_lags)
   model <- adl$model
   optimal_routput_lag <- adl$routput_lag
@@ -582,70 +587,17 @@ backtest <- function(vintage_year, vintage_quarter, routput_gdp, routput_date, h
       hstart_values <- c(hstart_values, hstart_column[starting_row_hstart-forecast_horizon-i])
     }
     
-    
-    
     prediction <- predict_function(model=model, optimal_lag_routput=optimal_routput_lag, optimal_lag_hstart=optimal_hstart_lag, routput_values=routput_values, hstart_values=hstart_values)
     actual_values <- c(actual_values, last_column[starting_row_index+count])
     prediction_values <- c(prediction_values, prediction)
     count = count + 1
   }
-  # col_prefix = "ROUTPUT"  
-  # ref_col = paste(col_prefix, vintage_year, vintage_quarter, sep = "") 
-  # column_index <- which(names(routput_gdp) == ref_col)
-  # start_index <- max(column_index - 50 - forecast_horizon, 10)
-  # selected_quarters <- routput_gdp[, start_index:(column_index-1)]
-  # latest_column <- routput_gdp[,ncol(routput_gdp)]
-  # predicted_values_list = list()
-  # lower_prediction_imntervals = list()
-  # upper_prediction_intervals = list()
-  # actual_values_list = list()
-  # dates <- c()
-  # return_list <- list()
-  # 
-  # 
-  # for(quarter in colnames(selected_quarters)){
-  #   year <- str_extract(quarter, "(?<=ROUTPUT)\\d{2}")
-  #   qtr <- str_extract(quarter, "Q\\d$")
-  #   time <- paste("ROUTPUT", year, qtr, sep="")
-  #   full_year <- convert_to_full_year(year)
-  #   time_routput <- paste(full_year, ":", qtr, sep="")
-  #   dates <- c(dates, time_routput)
-  #   
-  #   result_index <- which(routput_dates == time_routput)
-  #   
-  #   
-  #   optimal_lags <- find_optimal_lag_adl(year, qtr, routput_gdp, hstart_gdp, forecast_horizon, max_lags)
-  #   routput_lag <- optimal_lags$routput_lag
-  #   hstart_lag <- optimal_lags$hstart_lag[[1]]
-  #   
-  #   predicted_value <- forecasting_values(year, qtr, routput_gdp, hstart_gdp, forecast_horizon, routput_lag, hstart_lag)
-  #   actual_value <- latest_column[result_index]
-  #   
-  #   predicted_values_list[[time]] <- predicted_value$fit
-  #   actual_values_list[[time_routput]] <- actual_value
-  #   lower_prediction_intervals[[time]] <- predicted_value$lwr
-  #   upper_prediction_intervals[[time]] <- predicted_value$upr
-  #   
-  #   
-  # }
-  # 
-  # actual_values <- unlist(actual_values_list)
-  # predicted_values <- unlist(predicted_values_list)
-  # lower_prediction_int <- unlist(lower_prediction_intervals)
-  # upper_prediction_int <- unlist(upper_prediction_intervals)
-  # 
-  # prediction_df <- data.frame(dates, predicted_values, actual_values, lower_prediction_int, upper_prediction_int)
-  # 
-  # mse <- mean((actual_values-predicted_values)^2)
-  # return_list$mse <- mse
-  # return_list$prediction_df <- prediction_df
-  # return(return_list)
   mse <- mean((actual_values-prediction_values)^2)
   return(mse)
   
 }
 
-adl_backtest1 = backtest("13", "Q3", stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 6)
+adl_backtest1 = ADLbacktest("13", "Q3", stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 6)
 adl_backtest1
 
 
@@ -657,10 +609,10 @@ routput_date <- routput[,1]
 transformation_codes <- rep(5, ncol(routput_num))  # Apply the fred_transform function with the transformation codes 
 routput_gdp <- fred_transform(data = routput_num, type = "fred_qd", code = transformation_codes, na.rm= FALSE)
 
-adl_backtest2 = backtest("13", "Q4", stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 6)
+adl_backtest2 = ADLbacktest("13", "Q4", stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 6)
 adl_backtest2
 
-backtest("13", "Q4", routput_gdp, routput_date, hstart_gdp, hstart_date, 2, 6)
+ADLbacktest("13", "Q4", routput_gdp, routput_date, hstart_gdp, hstart_date, 2, 6)
 #mse = 0.518391
 
 # function to make forecasts
@@ -839,7 +791,72 @@ server <- function(input, output, session) {
       
       plotly_plot <- ggplotly(gg, tooltip = "text")
     } else if (input$model_choice == "ADL") {
+      
+      adl_one_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, 6)
+      adl_two_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, 6)
+      adl_three_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, 6)
+      adl_four_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, 6)
+      adl_five_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, 6)
+      adl_six_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, 6)
+      adl_seven_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, 6)
+      adl_eight_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, 6)
+      
+      adl_one_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, adl_one_step_best_model$routput_lag, adl_one_step_best_model$hstart_lag)
+      adl_two_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, adl_two_step_best_model$routput_lag, adl_two_step_best_model$hstart_lag)
+      adl_three_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, adl_three_step_best_model$routput_lag, adl_three_step_best_model$hstart_lag)
+      adl_four_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, adl_four_step_best_model$routput_lag, adl_four_step_best_model$hstart_lag)
+      adl_five_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, adl_five_step_best_model$routput_lag, adl_five_step_best_model$hstart_lag)
+      adl_six_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, adl_six_step_best_model$routput_lag, adl_six_step_best_model$hstart_lag)
+      adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
+      adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
+      
+      forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+      forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+      adl_forecast_df = data.frame(DATE = forecast_seq_dates,
+                                   point_forecast = c(adl_one_step_ahead_point_forecast$fit, 
+                                                      adl_two_step_ahead_point_forecast$fit, 
+                                                      adl_three_step_ahead_point_forecast$fit,
+                                                      adl_four_step_ahead_point_forecast$fit,
+                                                      adl_five_step_ahead_point_forecast$fit,
+                                                      adl_six_step_ahead_point_forecast$fit,
+                                                      adl_seven_step_ahead_point_forecast$fit,
+                                                      adl_eight_step_ahead_point_forecast$fit), 
+                                   Category = "D")
+
+      aux_df = data.frame(DATE = x_intercept, 
+                          point_forecast = (stat_df %>%
+                                              select(DATE, reference_col) %>%
+                                              filter(DATE == x_intercept) %>%
+                                              pull(reference_col)), 
+                          Category = "D")
+      adl_forecast_df = rbind(aux_df, adl_forecast_df)
+      
+      # Prepare the tooltip content for each dataset
+      subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
+      true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
+      adl_forecast_df$tooltip <- paste("Date:", adl_forecast_df$DATE, "<br>Forecast:", round(adl_forecast_df$point_forecast, 2))
+      
+      
+      
+      gg <- ggplot() +
+        geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
+        geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+        geom_point(data = adl_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = adl_forecast_df$tooltip), show.legend = TRUE) +
+        geom_line(data = adl_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
+        geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
+        geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
+        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        scale_x_yearqtr(format = "%Y Q%q") +
+        scale_color_manual(values = c("Historical Change" = "black", "Actual Change" = "chartreuse2", "Forecasted Change" = "blue"),
+                           name = "Legend Name") +
+        theme(plot.title = element_text(hjust = 0.5), 
+              legend.position = "bottom") +
+        guides(color = guide_legend(title = "Legend Name"))
+      
+      plotly_plot <- ggplotly(gg, tooltip = "text")
+      
       print("hello ADL")
+      print(adl_forecast_df)
     }
 
     
