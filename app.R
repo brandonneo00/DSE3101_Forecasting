@@ -1922,11 +1922,12 @@ Hence, our project endeavors to construct and assess resilient forecasting model
       long_df <- tidyr::pivot_longer(mutated_df, cols = -category, names_to = "t", values_to = "value")
       
       # Plot stacked bar chart
-      gg = ggplot(long_df, aes(x = category, y = value, fill = t)) +
+      ggplot(long_df, aes(x = category, y = value, fill = t)) +
         geom_bar(stat = "identity") +
         labs(x = "Category", y = "Feature Importance", fill = "Time") +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
+      
     } 
   })
   
