@@ -9,7 +9,6 @@
 library(shiny)
 library(plotly)
 library(readxl)
-library(tidyverse)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -24,7 +23,7 @@ library(DT)
 library(dynlm)
 
 # Read the Excel file using the correct file path
-path_to_data = "../ROUTPUTQvQd.xlsx"
+path_to_data = "ROUTPUTQvQd.xlsx"
 gdp_raw <- read_excel(path_to_data, col_names = TRUE)
 # Convert all columns except the first one (which contains dates) to numeric, keeping NA values as NA 
 gdp_num <- gdp_raw[, 2:ncol(gdp_raw)]
@@ -41,10 +40,6 @@ stat_gdp <- fred_transform(data = gdp_num, type = "fred_qd", code = transformati
 stat_df = data.frame(gdp_date, stat_gdp)
 stat_df$DATE = zoo::as.yearqtr(stat_df$DATE, format = "%Y:Q%q")
 stat_df
-
-earliest_year = min(as.integer(format(stat_df$DATE, "%Y")))
-latest_year = max(as.integer(format(stat_df$DATE, "%Y")))
-
 
 test = zoo::as.yearqtr("2022 Q2")
 seq_dates = seq(test, length.out = 8, by = 1/4)
@@ -71,25 +66,34 @@ get_last_available_vintage = function(stat_df_w_date){
   return(last_available_vintage_col_name)
 }
 
+
+last_vintage = get_last_available_vintage(stat_df)
+last_vintage_year = substr(last_vintage, start = nchar(last_vintage) - 3, stop = nchar(last_vintage) - 2)
+#earliest_year = min(as.integer(format(stat_df$DATE, "%Y")))
+last_vintage_year = as.integer(paste("20", last_vintage_year, sep=""))
+last_vintage_quarter = substr(last_vintage, start = nchar(last_vintage) - 1, stop = nchar(last_vintage))
+all_poss_quarters = c("Q1", "Q2", "Q3", "Q4")
+#setdiff(all_poss_quarters, last_vintage_quarter)
+
 library(reticulate)
 #py_install("pandas")
 #py_install("scikit-learn")
 #py_install("matplotlib")
 #py_install("openpyxl")
-reticulate::source_python("rf_feature_importance.py")
+reticulate::source_python("RandomForestTS.py")
 x1 = "2023"
 x2 = "Q1"
 x3 = "8Q"
 #test = rf(x1, x2, x3)
-#test
+# test
 
 
 reticulate::source_python("rf_backtesting.py")
-#rf_backtest = back_pred("2010", "Q1", "8Q", as.integer(5))
-#rf_backtest
+# rf_backtest = back_pred("2010", "Q3", "8Q", as.integer(5))
+# rf_backtest
 #unlist(rf_backtest)
-vector_test = c(1,2,3,4,5,6,7,8,9,10,11)
-vector_test
+# vector_test = c(1,2,3,4,5,6,7,8,9,10,11)
+#vector_test
 #View(rf_backtest)
 #rf_backtest[1]
 
@@ -98,7 +102,7 @@ vector_test
 fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   col_prefix = "ROUTPUT"
   reference_col = paste(col_prefix, vintage_year, vintage_quarter, sep="")
-  #print(reference_col)
+  ## print(reference_col)
   
   subset_df = as.matrix(df %>%
                           select(reference_col))
@@ -282,7 +286,7 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
   
   routput_start <- find_quarter_year(routput_df[,column_index])
   hstart_start <- find_quarter_year(subset_hstart_df)
-  # print(subset_hstart_df)
+  # # print(subset_hstart_df)
   routput_ts <- ts(na.omit(subset_routput_df), start=c(routput_start$year,routput_start$quarter), frequency = 4)
   hstart_ts <- ts(na.omit(subset_hstart_df), start=c(hstart_start$year, hstart_start$quarter), frequency=4)
   
@@ -307,11 +311,11 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
     
     for(i in 1:max_lags){
       label = paste("ADL", i, sep="")
-      #print(label)
+      ## print(label)
       
       aux = embed(subset_hstart_df, (max_lags + forecast_horizon))
       aux = aux[complete.cases(aux), ]
-      print(aux)
+     # # print(aux)
       X = data.frame(aux[, -c(1:forecast_horizon)])
       X_mat = as.matrix(aux[,-c(1:forecast_horizon)])
       
@@ -326,10 +330,10 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
       
       num_rows_routput <- dim(subset_X_mat_routput)[1]
       num_rows_hstart <- dim(subset_X_mat_hstart)[1]
-      #print(subset_X_mat_routput)
+      ## print(subset_X_mat_routput)
       
       if(num_rows_routput > num_rows_hstart){
-        # print("here1")
+        # # print("here1")
         X_mat_routput = subset_X_mat_routput[1:num_rows_hstart,]
         y = y_sub[1:num_rows_hstart]
         X_mat_hstart = subset_X_mat_hstart
@@ -338,7 +342,7 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
         
       }
       else if (num_rows_routput < num_rows_hstart){
-        print("here2")
+       # # print("here2")
         X_mat_hstart = subset_X_mat_hstart[1:num_rows_routput,]
         y = y_sub
         X_mat_routput = subset_X_mat_routput
@@ -395,13 +399,13 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
     
     best_model_key = names(which.min(unlist(all_models_loocv_mse)))
     best_model_lag_hstart = which.min(unlist(all_models_loocv_mse))
-    # print(best_model_lag_hstart)
+    # # print(best_model_lag_hstart)
     
     
     model_ar = fitAR_model(vintage_year, vintage_quarter, routput_df, forecast_horizon, max_lags)
     best_model_lag_routput = length(coef(model_ar))-1
     best_model <- dynlm(routput_ts ~ L(routput_ts, 1:best_model_lag_routput) + L(hstart_ts, 1:best_model_lag_hstart))
-    # print(best_model)
+    # # print(best_model)
     
     optimal_model$routput_lag <- best_model_lag_routput
     optimal_model$hstart_lag <- best_model_lag_hstart
@@ -414,7 +418,7 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
 }
 
 # importing additional data of predictors needed for ADL
-hstart <- read_excel('../hstartsMvMd.xlsx')
+hstart <- read_excel('hstartsMvMd.xlsx')
 hstart <- hstart %>%
   mutate(across(-DATE, ~ifelse(. == "#N/A", NA_real_, as.numeric(as.character(.)))))
 hstart_quarterly <- hstart %>%
@@ -437,12 +441,12 @@ match_quarter_to_month <- function(quarter_col, hstart_df) {
   
   # Extract the corresponding month based on the quarter
   month <- quarter_to_month[quarter]
-  # print(year)
-  # print(month)
+  # # print(year)
+  # # print(month)
   
   # Construct the column name in hstart_df
   hstart_col <- paste("HSTARTS", year, month, sep = "")
-  # print(hstart_col)
+  # # print(hstart_col)
   
   # Return the subset of hstart_df
   return(hstart_df[, hstart_col])
@@ -474,7 +478,7 @@ getADLForecast <- function(vintage_year, vintage_quarter, routput_gdp, hstart_gd
   Y = as.matrix(test_data_routput[,1]) #t-0 (1 column and 70 rows)  
   
   
-  # print(test_data_routput)
+  # # print(test_data_routput)
   
   reference_column_hstart = match_quarter_to_month(ref_col, hstart_gdp)
   reference_column_hstart_cleaned = as.matrix(na.omit(reference_column_hstart))
@@ -490,7 +494,7 @@ getADLForecast <- function(vintage_year, vintage_quarter, routput_gdp, hstart_gd
   else if(nrow_routput < nrow_hstart){
     
     final_hstart = tail(test_data_hstart, nrow_routput)
-    print(final_hstart)
+    # # print(final_hstart)
     final_routput = test_data_routput
     Y_final = Y
   }
@@ -503,7 +507,7 @@ getADLForecast <- function(vintage_year, vintage_quarter, routput_gdp, hstart_gd
   
   
   
-  # print(test_data_hstart)
+  # # print(test_data_hstart)
   
   
   lag_names_routput = paste("t", 0:(ncol(test_data_routput)-1), sep = "-") #renaming to t-0 to t-optimallags for colnames  
@@ -523,7 +527,7 @@ getADLForecast <- function(vintage_year, vintage_quarter, routput_gdp, hstart_gd
   adl_model = lm(Y_final~combined_matrix)  
   n_step_forecast <- predict(adl_model, interval="prediction")  
   result = data.frame(n_step_forecast)  
-  #print(result)
+  ## print(result)
   final_value = tail(result, 1) #retrieving the last value
   return(final_value)
 }
@@ -557,7 +561,7 @@ predictions
 
 
 adl_predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, routput_values, hstart_values){
-  #print(routput_values)
+  ## print(routput_values)
   intercept <- coef(model)[1]
   coefficients_routput <- coef(model)[2:(2+optimal_lag_routput-1)]
   coefficients_hstart <- coef(model)[(2+optimal_lag_routput):length(coef(model))]
@@ -573,9 +577,9 @@ ARBacktest <- function(vintage_year, vintage_quarter, model, routput_gdp, routpu
   
   col_prefix <- "ROUTPUT"
   reference_col <- paste(col_prefix, vintage_year, vintage_quarter, sep="")
-  print(reference_col)
+  # # print(reference_col)
   column_index <- which(names(routput_gdp) == reference_col)
-  print(column_index)
+  # # print(column_index)
   
   routput_column <- routput_gdp[, column_index]
   
@@ -623,7 +627,7 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
   optimal_hstart_lag <- optimal_adl_model$hstart_lag
   full_year <- convert_to_full_year(vintage_year)
   starting_index_string <- paste(full_year, ":", vintage_quarter, sep="")
-  print(starting_index_string)
+  # # print(starting_index_string)
   row_index <- which(routput_date$DATE == starting_index_string)
   
   col_prefix = "ROUTPUT"
@@ -647,7 +651,7 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
     for(i in 1:optimal_routput_lag){
       starting_row_routput <- starting_row_index + count #loop through thr start of routput predictors 
       routput_values <- c(routput_values, routput_column[starting_row_routput-forecast_horizon-i]) 
-      #print(routput_values)
+      ## print(routput_values)
     }
     
     for(j in 1:optimal_hstart_lag){
@@ -672,7 +676,7 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
 #adl_backtest1 = ADLbacktest("13", "Q3", stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 6)
 #adl_backtest1
 
-routput <- read_excel('../ROUTPUTQvQd.xlsx')
+routput <- read_excel('ROUTPUTQvQd.xlsx')
 routput <- routput %>%
   mutate(across(-DATE, ~ifelse(. == "#N/A", NA_real_, as.numeric(as.character(.)))))
 routput_num <- routput[, 2:ncol(routput)] 
@@ -710,56 +714,54 @@ optimallag <- as.numeric(gsub("[^0-9]", "", best_model))
 
 
 a = getForecast(65,"Q4",stat_gdp,1)
-print(a)
+# # print(a)
 
 
 # For forecast combination model
-average_backtest <- function(vintage_year, vintage_quarter, optimal_adl_model, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
+average_backtest <- function(vintage_year, vintage_quarter, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
   actual_values <- c()
   last_column = routput_gdp[,ncol(routput_gdp)]
   full_year <- convert_to_full_year(vintage_year)
   starting_index_string <- paste(full_year, ":", vintage_quarter, sep="")
-  print(starting_index_string)
+  # # print(starting_index_string)
   row_index <- which(routput_date$DATE == starting_index_string)
   starting_row_index <- row_index - 50 - forecast_horizon
   count <- 0 
   
   actual_values <- c(actual_values, last_column[starting_row_index+count])
   
-  while(count < 50){
-    actual_values <- c(actual_values, last_column[starting_row_index+count])
-    count = count + 1
-  }
-  
   #vintage year is the last two digit of YYYY
-  print("this is adl backtest")
+  # print("this is adl backtest")
+
+  optimal_adl_model <- fit_adl(vintage_year, vintage_quarter, routput_gdp, hstart_gdp, forecast_horizon, max_lags)
   adl_backtest <- ADLbacktest(vintage_year, vintage_quarter, optimal_adl_model, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags)
   adl_predictions_vector <- adl_backtest$predictions
   
-  
-  print("this is ar backtest")
-  print("ar model line")
+  print("finished ADL")
+  # print("this is ar backtest")
+  # print("ar model line")
   ar_model <- fitAR_model(vintage_year, vintage_quarter, routput_gdp, forecast_horizon, max_lags)
-  print("ar backtest line")
+  # print("ar backtest line")
   ar_backtest <- ARBacktest(vintage_year, vintage_quarter, ar_model, routput_gdp, routput_date, forecast_horizon, max_lags)
-  print("ar predictions vector line")
+  # print("ar predictions vector line")
   ar_predictions_vector <- ar_backtest$predictions
   
-  print("this rf")
+  # print("this rf")
   rf_vintage_year = paste("20", vintage_year, sep="")
   reticulate::source_python("rf_backtesting.py")
+  
   rf_predictions = back_pred(rf_vintage_year, vintage_quarter, "8Q", as.integer(5))
   rf_predictions_vector = unlist(rf_predictions)
   #rf_predictions_vector <- RFbacktest(parameters)
-  print(rf_predictions_vector)
+  # # print(rf_predictions_vector)
   
-  #df = data.frame(ar_prediction = ar_predictions_vector,
-  #                adl_prediction = adl_predictions_vector,
-  #                rf_prediction = rf_predictions_vector,
-  #                actual_value = actual_values)
-  #df = df %>% 
-  #  mutate(average_prediction = mean(ar_prediction + adl_prediction + rf_prediction)) %>%
-  #  mutate(sq_error = actual_value - average_prediction)
+  df = data.frame(ar_prediction = ar_predictions_vector,
+                  adl_prediction = adl_predictions_vector,
+                  rf_prediction = rf_predictions_vector,
+                  actual_value = actual_values)
+  df = df %>% 
+    mutate(average_prediction = mean(ar_prediction + adl_prediction + rf_prediction)) %>%
+    mutate(sq_error = actual_value - average_prediction)
   
   average_predictions <- (rf_predictions_vector+ adl_predictions_vector + ar_predictions_vector) / 3
   mse <- mean((actual_values-average_predictions)^2)
@@ -775,57 +777,374 @@ average_backtest <- function(vintage_year, vintage_quarter, optimal_adl_model, r
    
 }
 
+# average_backtest("97", "Q1", routput_gdp, routput_date, hstart_gdp, hstart_date, 2, 8)
+
 library(reticulate)
-#reticulate::source_python("rf_feature_importance.py")
-##randomforest = rf("2010", "Q1", "8Q")
-#test_ar_model = fitAR_model("10", "Q1", stat_gdp, 2, 8)
-#test_ar_backtesting = ARBacktest("10", "Q1", test_ar_model, stat_gdp, gdp_date, 2, 8)
+reticulate::source_python("rf_feature_importance.py")
+# randomforest = rf("2010", "Q1", "8Q")
+# test_ar_model = fitAR_model("10", "Q1", stat_gdp, 2, 8)
+# test_ar_backtesting = ARBacktest("10", "Q1", test_ar_model, stat_gdp, gdp_date, 2, 8)
 #test_adl_model = fit_adl("10", "Q1", stat_gdp, hstart_gdp, 2, 8)
+#?ADLbacktest
+#adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
 
-##adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
-
-#test_adl_model
-#test_adl_backtesting = ADLbacktest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
-#average_backtest_test_result = average_backtest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
-#average_backtest_test_result
-#average_backtest_test_result$actual_values
-#average_backtest_test_result$rf_predictions_vector
-#average_backtest_test_result$adl_predictions_vector
-#average_backtest_test_result$ar_predictions_vector
-#average_backtest_test_result$average_predictions
+# test_adl_model
+# test_adl_backtesting = ADLbacktest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
+# average_backtest_test_result = average_backtest("10", "Q1", test_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)
+# average_backtest_test_result
+# average_backtest_test_result$actual_values
+# average_backtest_test_result$rf_predictions_vector
+# average_backtest_test_result$adl_predictions_vector
+# average_backtest_test_result$ar_predictions_vector
+# average_backtest_test_result$average_predictions
 
 ui <- fluidPage(
   
+  ## Inserting background image
+  tags$head(
+    tags$style(
+      HTML(
+        "
+        #background-image {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: -1;
+        }
+        "
+      )
+    )
+  ),
+  
+  # Embedding the image using HTML img tag
+  tags$img(src = "lightsciencebackground.jpg", id = "background-image", alt = "Background Image"),
+  
   # Application title
-  titlePanel("Macroeconomic Forecasting of Real GDP"),
+  titlePanel("Experimenting with Macroeconomic Forecasting: Real GDP Change"),
+  
+  h4("Welcome to the forefront of macroeconomic forecasting."),
+  h4("Step into our innovative lab, where we blend scientific rigour with economic analysis to navigate the complex terrain of GDP forecasting."),
+  h3("Let the experiment begin!"),
   
   theme = shinythemes::shinytheme("united"),
   
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      sliderInput("year", "Select Year", min=earliest_year, max=latest_year, step=1, value = 2010),
+      sliderInput("year", "Select Year", min=1975, max=last_vintage_year, step=1, value = 2010),
       selectInput("quarter", "Select Quarter", choices=c("Q1", "Q2", "Q3", "Q4")),
       selectInput("alpha", "Select Alpha for Fan Chart", choices=c("50%", "80%", "90%"), selected="50%"),
-      selectInput("model_choice", "Choose Model to show", choices = c("AR", "ADL", "Random Forest", "Combined", "Most Optimal"), selected = "AR")
+      selectInput("model_choice", "Choose Model to show", choices = c("Autoregressive Model (AR)", "Autoregressive Distributed Lag Model (ADL)", "Random Forest", "Combined", "Most Optimal"), selected = "AR"),
+      checkboxInput("hide_line_point", "Show Actual Change", value = FALSE),
+      tags$img(src = "forecast-analytics.png", height = 200, width = 200),
+      tags$img(src = "experiment.png", height = 200, width = 200)
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel("Time Series", plotlyOutput("line_plot"), textOutput("plot_description"), plotOutput("rf_feature_importance")),
+        tabPanel("Time Series", fluidRow(plotlyOutput("line_plot"),  tableOutput("table_forecast")), textOutput("plot_description"), plotOutput("rf_feature_importance")),
         tabPanel("Table", DT::DTOutput("dt_table")),
-      )
+        # Add a new tab for Statistics with Data Table
+        tabPanel("Statistics",
+                 h4("Statistics Table"),
+                 DT::DTOutput("stats_table")
+        )
+      ),
       
+      # Add a new picture below the plot description and mirror it
+      tags$img(src = "Teacher_teaching_with_a_stick.svg", height = 200, width = 200, style = "transform: scaleX(-1);")
     )
   ),
   actionButton("show_about", "About")
 )
 
 
+adl_setup <- function(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept){
+  adl_one_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, 8)
+  adl_two_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, 8)
+  adl_three_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, 8)
+  adl_four_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, 8)
+  adl_five_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, 8)
+  adl_six_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, 8)
+  adl_seven_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, 8)
+  adl_eight_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, 8)
+  
+  adl_one_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, adl_one_step_best_model$routput_lag, adl_one_step_best_model$hstart_lag)
+  adl_two_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, adl_two_step_best_model$routput_lag, adl_two_step_best_model$hstart_lag)
+  adl_three_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, adl_three_step_best_model$routput_lag, adl_three_step_best_model$hstart_lag)
+  adl_four_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, adl_four_step_best_model$routput_lag, adl_four_step_best_model$hstart_lag)
+  adl_five_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, adl_five_step_best_model$routput_lag, adl_five_step_best_model$hstart_lag)
+  adl_six_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, adl_six_step_best_model$routput_lag, adl_six_step_best_model$hstart_lag)
+  adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
+  adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
+  
+  adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
+  adl_two_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_two_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)$rmse
+  adl_three_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_three_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 3, 8)$rmse
+  adl_four_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_four_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 4, 8)$rmse
+  adl_five_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_five_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 5, 8)$rmse
+  adl_six_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_six_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 6, 8)$rmse
+  adl_seven_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_seven_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 7, 8)$rmse
+  adl_eight_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_eight_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 8, 8)$rmse
+  
+  forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+  forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+  adl_forecast_df = data.frame(DATE = forecast_seq_dates,
+                               point_forecast = c(adl_one_step_ahead_point_forecast$fit, 
+                                                  adl_two_step_ahead_point_forecast$fit, 
+                                                  adl_three_step_ahead_point_forecast$fit,
+                                                  adl_four_step_ahead_point_forecast$fit,
+                                                  adl_five_step_ahead_point_forecast$fit,
+                                                  adl_six_step_ahead_point_forecast$fit,
+                                                  adl_seven_step_ahead_point_forecast$fit,
+                                                  adl_eight_step_ahead_point_forecast$fit), 
+                               rmse = c(adl_one_step_ahead_rmse, 
+                                        adl_two_step_ahead_rmse,
+                                        adl_three_step_ahead_rmse,
+                                        adl_four_step_ahead_rmse,
+                                        adl_five_step_ahead_rmse, 
+                                        adl_six_step_ahead_rmse, 
+                                        adl_seven_step_ahead_rmse,
+                                        adl_eight_step_ahead_rmse),
+                               Category = "D")
+  
+  #adl_aux_df = data.frame(DATE = x_intercept, 
+  #                        point_forecast = (stat_df %>%
+  #                                            select(DATE, reference_col) %>%
+  #                                            filter(DATE == x_intercept) %>%
+  #                                            pull(reference_col)),
+  #                        rmse = 1,
+  #                        Category = "D")
+  #adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
+  return (adl_forecast_df)
+}
+
+ar_setup <- function(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept){
+  ar_one_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 1, 8)
+  ar_two_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 2, 8)
+  ar_three_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 3, 8)
+  ar_four_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 4, 8)
+  ar_five_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 5, 8)
+  ar_six_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 6, 8)
+  ar_seven_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 7, 8)
+  ar_eight_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 8, 8)
+  
+  ar_one_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 1, ar_one_step_best_model_lag)
+  ar_two_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 2, ar_two_step_best_model_lag)
+  ar_three_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 3, ar_three_step_best_model_lag)
+  ar_four_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 4, ar_four_step_best_model_lag)
+  ar_five_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 5, ar_five_step_best_model_lag)
+  ar_six_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 6, ar_six_step_best_model_lag)
+  ar_seven_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 7, ar_seven_step_best_model_lag)
+  ar_eight_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 8, ar_eight_step_best_model_lag)
+  
+  ar_model_one_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 1, 8)
+  ar_model_two_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 2, 8)
+  ar_model_three_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 3, 8)
+  ar_model_four_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 4, 8)
+  ar_model_five_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 5, 8)
+  ar_model_six_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 6, 8)
+  ar_model_seven_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 7, 8)
+  ar_model_eight_step_ahead <- fitAR_model(reference_year, reference_quarter, stat_df, 8, 8)
+  
+  ar_one_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_one_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_two_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_two_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_three_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_three_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_four_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_four_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_five_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_five_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_six_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_six_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_seven_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_seven_step_ahead, routput_gdp, routput_date, 8)$rmse
+  ar_eight_step_ahead_rmse <- ARBacktest(reference_year, reference_quarter, ar_model_eight_step_ahead, routput_gdp, routput_date, 8)$rmse
+  
+  
+  forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+  forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+  ar_forecast_df = data.frame(DATE = forecast_seq_dates,
+                              point_forecast = c(ar_one_step_ahead_point_forecast,
+                                                 ar_two_step_ahead_point_forecast,
+                                                 ar_three_step_ahead_point_forecast,
+                                                 ar_four_step_ahead_point_forecast,
+                                                 ar_five_step_ahead_point_forecast,
+                                                 ar_six_step_ahead_point_forecast,
+                                                 ar_seven_step_ahead_point_forecast,
+                                                 ar_eight_step_ahead_point_forecast),
+                              rmse = c(ar_one_step_ahead_rmse, 
+                                       ar_two_step_ahead_rmse,
+                                       ar_three_step_ahead_rmse,
+                                       ar_four_step_ahead_rmse,
+                                       ar_five_step_ahead_rmse, 
+                                       ar_six_step_ahead_rmse, 
+                                       ar_seven_step_ahead_rmse,
+                                       ar_eight_step_ahead_rmse),
+                              Category = "C")
+  #ar_aux_df = data.frame(DATE = x_intercept,
+  #                       point_forecast = (stat_df %>%
+  #                                           select(DATE, reference_col) %>%
+  #                                           filter(DATE == x_intercept) %>%
+  #                                           pull(reference_col)),
+  #                       rmse = 1,
+  #                       Category = "C")
+  
+  #ar_forecast_df = rbind(ar_aux_df, ar_forecast_df)
+  return(ar_forecast_df)
+  
+}
+
+rf_setup <- function(reference_year, reference_quarter, forecast_seq_dates){
+  rf_point_forecast_vector = rf(reference_year, reference_quarter, "8Q")
+  rf_forecast_df = data.frame(DATE = forecast_seq_dates,
+                              point_forecast = rf_point_forecast_vector,
+                              rmse = c(0.629463841834001,0.6844503375242059,
+                                      0.7392630359992515,0.7474935207695086,
+                                      0.7231042915915886,0.7185255666384972,
+                                      0.7202573041167137,0.7250225603128362))
+  return(rf_forecast_df)
+}
+
+combined_setup <- function(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept, forecast_seq_dates){
+  adl_forecast_df <- adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+  ar_forecast_df <- ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+  rf_forecast_df <- rf_setup(reference_year, reference_quarter, forecast_seq_dates)
+  
+  adl_forecast_points <- adl_forecast_df$point_forecast[2:length(adl_forecast_df$point_forecast)]
+  ar_forecast_points <- ar_forecast_df$point_forecast[2:length(ar_forecast_df$point_forecast)]
+  
+  adl_rmse <- adl_forecast_df$rmse[2:length(adl_forecast_df$rmse)]
+  ar_rmse <- ar_forecast_df$rmse[2:length(ar_forecast_df$rmse)]
+  
+  
+  
+  
+  
+  combined_point_forecast <- (adl_forecast_points + ar_forecast_points + rf_forecast_df$point_forecast)/3
+  combined_point_rmse <- (adl_rmse+ar_rmse+rf_forecast_df$rmse)/3
+  
+  
+  combined_forecast_df = data.frame(DATE = forecast_seq_dates,
+                              point_forecast = combined_point_forecast,
+                              rmse = combined_point_rmse, 
+                              Category = "E")
+  
+    
+  
+  return (combined_forecast_df)
+  
+}
+
+library(shinyjs)
+
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
+  # observeEvent(input$year, {
+  #   # Update the choices of the selectInput based on the value of the slider
+  #   if (input$year == last_vintage_year) {
+  #     updateSelectInput(session, "quarter", choices = last_vintage_quarter)
+  #   } else {
+  #     updateSelectInput(session, "quarter", choices = setdiff(all_poss_quarters, last_vintage_quarter))
+  #   }
+  # })
+  # 
+  # observeEvent(input$year, {
+  #   # Update the choices of the selectInput based on the value of the slider
+  #   if (input$year == last_vintage_year & input$quarter == last_vintage_quarter) {
+  #     updateSelectInput(session, "model_choice", choices = c("OOS"))
+  #   } else {
+  #     updateSelectInput(session, "model_choice", choices = c("Autoregressive Model (AR)", "Autoregressive Distributed Lag Model (ADL)", "Random Forest", "Combined", "Most Optimal"))
+  #   }
+  # })
+
   output$line_plot = renderPlotly({
+    # if (input$year == last_vintage_year & input$quarter == last_vintage_quarter){
+    #   reference_year = substr(input$year, start = 3, stop = 4)
+    #   ar_one_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 1, 8)
+    #   ar_two_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 2, 8)
+    #   ar_three_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 3, 8)
+    #   ar_four_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 4, 8)
+    #   ar_five_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 5, 8)
+    #   ar_six_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 6, 8)
+    #   ar_seven_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 7, 8)
+    #   ar_eight_step_best_model_lag = fitAR(reference_year, last_vintage_quarter, stat_df, 8, 8)
+    #   
+    #   ar_one_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 1, ar_one_step_best_model_lag)
+    #   ar_two_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 2, ar_two_step_best_model_lag)
+    #   ar_three_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 3, ar_three_step_best_model_lag)
+    #   ar_four_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 4, ar_four_step_best_model_lag)
+    #   ar_five_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 5, ar_five_step_best_model_lag)
+    #   ar_six_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 6, ar_six_step_best_model_lag)
+    #   ar_seven_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 7, ar_seven_step_best_model_lag)
+    #   ar_eight_step_ahead_point_forecast = getForecast(reference_year, last_vintage_quarter, stat_df, 8, ar_eight_step_best_model_lag)
+    #   
+    #   
+    #   #adl_one_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 1, 8)
+    #   #adl_two_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 2, 8)
+    #   #adl_three_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 3, 8)
+    #   #adl_four_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 4, 8)
+    #   #adl_five_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 5, 8)
+    #   #adl_six_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 6, 8)
+    #   #adl_seven_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 7, 8)
+    #   #adl_eight_step_best_model = fit_adl(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 8, 8)
+    #   
+    #   #adl_one_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 1, adl_one_step_best_model$routput_lag, adl_one_step_best_model$hstart_lag)
+    #   #adl_two_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 2, adl_two_step_best_model$routput_lag, adl_two_step_best_model$hstart_lag)
+    #   #adl_three_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 3, adl_three_step_best_model$routput_lag, adl_three_step_best_model$hstart_lag)
+    #   #adl_four_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 4, adl_four_step_best_model$routput_lag, adl_four_step_best_model$hstart_lag)
+    #   #adl_five_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 5, adl_five_step_best_model$routput_lag, adl_five_step_best_model$hstart_lag)
+    #   #adl_six_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 6, adl_six_step_best_model$routput_lag, adl_six_step_best_model$hstart_lag)
+    #   #adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
+    #   #adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, last_vintage_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
+    #   
+    #   #rf_point_forecast_vector = rf(reference_year, last_vintage_quarter, "8Q")
+    #   
+    #   #oos_df = data.frame(AR_point_forecast = c(ar_one_step_ahead_point_forecast,
+    #   #                                          ar_two_step_ahead_point_forecast,
+    #   #                                          ar_three_step_ahead_point_forecast,
+    #   #                                          ar_four_step_ahead_point_forecast,
+    #   #                                          ar_five_step_ahead_point_forecast, 
+    #   #                                          ar_six_step_ahead_point_forecast, 
+    #   #                                          ar_seven_step_ahead_point_forecast, 
+    #   #                                          ar_eight_step_ahead_point_forecast),
+    #   #                    ADL_point_forecast = c(adl_one_step_ahead_point_forecast, 
+    #   #                                           adl_two_step_ahead_point_forecast, 
+    #   #                                           adl_three_step_ahead_point_forecast, 
+    #   #                                           adl_four_step_ahead_point_forecast, 
+    #   #                                           adl_five_step_ahead_point_forecast, 
+    #   #                                           adl_six_step_ahead_point_forecast, 
+    #   #                                           adl_seven_step_ahead_point_forecast, 
+    #   #                                           adl_eight_step_ahead_point_forecast), 
+    #   #                    RF_point_forecast = rf_point_forecast_vector)
+    #   
+    #   #print(oos_df)
+    #   print(c(ar_one_step_ahead_point_forecast, ar_two_step_ahead_point_forecast, ar_three_step_ahead_point_forecast, ar_four_step_ahead_point_forecast, ar_five_step_ahead_point_forecast, ar_six_step_ahead_point_forecast, ar_seven_step_ahead_point_forecast, ar_eight_step_ahead_point_forecast))
+    # }
+    
+    prevInputs <- reactiveValues(year = NULL, quarter = NULL)
+    observe({
+      # Current year and quarter input values
+      currentYear <- input$year
+      currentQuarter <- input$quarter
+      
+      # Check if current inputs are different from the previous ones
+      if (is.null(prevInputs$year) || is.null(prevInputs$quarter) || 
+          currentYear != prevInputs$year || currentQuarter != prevInputs$quarter) {
+        
+        print(paste("CurrentYear:",  currentYear, "PrevYear:", prevInputs$year))
+        
+        # Update previous input values
+        prevInputs$year <- currentYear
+        prevInputs$quarter <- currentQuarter
+        
+        # Perform your operation here
+        # For example, this could be a print statement or a more complex operation
+        print(paste("Year:", currentYear, "Quarter:", currentQuarter))
+        
+        # If using setup_adl() or similar, trigger it here
+        # result <- setup_adl(currentYear, currentQuarter)
+        # use the result as needed
+      }
+    })
     col_prefix = "ROUTPUT"
     #to get the last two digit of the user's input year
     reference_year = substr(input$year, start = 3, stop = 4)
@@ -842,7 +1161,7 @@ server <- function(input, output, session) {
       alpha = 0.1
     }
     
-    print(reference_col)
+    # # print(reference_col)
     
     subset_df = stat_df %>%
       select(DATE, reference_col) %>%
@@ -850,7 +1169,10 @@ server <- function(input, output, session) {
       tail(16) %>% #showing the last 16 quarters of data 
       mutate(Category = "A")
     
-    #print(subset_df)
+    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+    
+    ## print(subset_df)
     
     reference_quarter_numeric = as.numeric(substr(input$quarter, star = nchar(input$quarter), stop = nchar(input$quarter)))
     if (reference_quarter_numeric == 1){
@@ -870,11 +1192,11 @@ server <- function(input, output, session) {
     # showing the "true" values for 8 steps ahead from user's vintage point
     
     # very last col available in the data 
-    #true_value_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
-    #true_value_seq_dates = seq(true_value_start_date, length.out = 8, by = 1/4)
+    true_value_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    true_value_seq_dates = seq(true_value_start_date, length.out = 8, by = 1/4)
     
-    true_value_start_date = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
-    true_value_seq_dates = seq(true_value_start_date, length.out = 9, by = 1/4)
+    #true_value_start_date = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
+    #true_value_seq_dates = seq(true_value_start_date, length.out = 9, by = 1/4)
     
     last_available_vintage = get_last_available_vintage(stat_df)
     true_df = stat_df %>% 
@@ -882,227 +1204,395 @@ server <- function(input, output, session) {
       filter(DATE %in% true_value_seq_dates) %>%
       mutate(Category = "B")
     
-    print(true_df)
+    # # print(true_df)
     
-    # making point forecasts using AR model
-    ar_one_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 1, 8)
-    ar_two_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 2, 8)
-    ar_three_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 3, 8)
-    ar_four_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 4, 8)
-    ar_five_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 5, 8)
-    ar_six_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 6, 8)
-    ar_seven_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 7, 8)
-    ar_eight_step_best_model_lag = fitAR(reference_year, reference_quarter, stat_df, 8, 8)
+   
     
-    ar_one_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 1, ar_one_step_best_model_lag)
-    ar_two_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 2, ar_two_step_best_model_lag)
-    ar_three_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 3, ar_three_step_best_model_lag)
-    ar_four_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 4, ar_four_step_best_model_lag)
-    ar_five_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 5, ar_five_step_best_model_lag)
-    ar_six_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 6, ar_six_step_best_model_lag)
-    ar_seven_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 7, ar_seven_step_best_model_lag)
-    ar_eight_step_ahead_point_forecast = getForecast(reference_year, reference_quarter, stat_df, 8, ar_eight_step_best_model_lag)
-    
-    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
-    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
-    ar_forecast_df = data.frame(DATE = forecast_seq_dates, 
-                                point_forecast = c(ar_one_step_ahead_point_forecast, 
-                                                   ar_two_step_ahead_point_forecast, 
-                                                   ar_three_step_ahead_point_forecast, 
-                                                   ar_four_step_ahead_point_forecast, 
-                                                   ar_five_step_ahead_point_forecast, 
-                                                   ar_six_step_ahead_point_forecast,
-                                                   ar_seven_step_ahead_point_forecast, 
-                                                   ar_eight_step_ahead_point_forecast), 
-                                Category = "C")
-    ar_aux_df = data.frame(DATE = x_intercept, 
-                           point_forecast = (stat_df %>%
-                                               select(DATE, reference_col) %>%
-                                               filter(DATE == x_intercept) %>%
-                                               pull(reference_col)), 
-                           Category = "C")
-    
-    ar_forecast_df = rbind(ar_aux_df, ar_forecast_df)
-    
-    # making the point forecast for ADL
-    adl_one_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, 8)
-    adl_two_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, 8)
-    adl_three_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, 8)
-    adl_four_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, 8)
-    adl_five_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, 8)
-    adl_six_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, 8)
-    adl_seven_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, 8)
-    adl_eight_step_best_model = fit_adl(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, 8)
-    
-    adl_one_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 1, adl_one_step_best_model$routput_lag, adl_one_step_best_model$hstart_lag)
-    adl_two_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 2, adl_two_step_best_model$routput_lag, adl_two_step_best_model$hstart_lag)
-    adl_three_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 3, adl_three_step_best_model$routput_lag, adl_three_step_best_model$hstart_lag)
-    adl_four_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 4, adl_four_step_best_model$routput_lag, adl_four_step_best_model$hstart_lag)
-    adl_five_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 5, adl_five_step_best_model$routput_lag, adl_five_step_best_model$hstart_lag)
-    adl_six_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 6, adl_six_step_best_model$routput_lag, adl_six_step_best_model$hstart_lag)
-    adl_seven_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 7, adl_seven_step_best_model$routput_lag, adl_seven_step_best_model$hstart_lag)
-    adl_eight_step_ahead_point_forecast = getADLForecast(reference_year, reference_quarter, stat_gdp, hstart_gdp, 8, adl_eight_step_best_model$routput_lag, adl_eight_step_best_model$hstart_lag)
-    
-    adl_one_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_one_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 1, 8)$rmse
-    adl_two_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_two_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 2, 8)$rmse
-    adl_three_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_three_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 3, 8)$rmse
-    adl_four_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_four_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 4, 8)$rmse
-    adl_five_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_five_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 5, 8)$rmse
-    adl_six_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_six_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 6, 8)$rmse
-    adl_seven_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_seven_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 7, 8)$rmse
-    adl_eight_step_ahead_rmse = ADLbacktest(reference_year, reference_quarter, adl_eight_step_best_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, 8, 8)$rmse
-    
-    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
-    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
-    adl_forecast_df = data.frame(DATE = forecast_seq_dates,
-                                 point_forecast = c(adl_one_step_ahead_point_forecast$fit, 
-                                                    adl_two_step_ahead_point_forecast$fit, 
-                                                    adl_three_step_ahead_point_forecast$fit,
-                                                    adl_four_step_ahead_point_forecast$fit,
-                                                    adl_five_step_ahead_point_forecast$fit,
-                                                    adl_six_step_ahead_point_forecast$fit,
-                                                    adl_seven_step_ahead_point_forecast$fit,
-                                                    adl_eight_step_ahead_point_forecast$fit), 
-                                 rmse = c(adl_one_step_ahead_rmse, 
-                                          adl_two_step_ahead_rmse,
-                                          adl_three_step_ahead_rmse,
-                                          adl_four_step_ahead_rmse,
-                                          adl_five_step_ahead_rmse, 
-                                          adl_six_step_ahead_rmse, 
-                                          adl_seven_step_ahead_rmse,
-                                          adl_eight_step_ahead_rmse),
-                                 Category = "D")
-    
-    adl_aux_df = data.frame(DATE = x_intercept, 
-                            point_forecast = (stat_df %>%
-                                                select(DATE, reference_col) %>%
-                                                filter(DATE == x_intercept) %>%
-                                                pull(reference_col)),
-                            rmse = 1,
-                            Category = "D")
-    adl_forecast_df = rbind(adl_aux_df, adl_forecast_df)
     
     # Random Forest Forecast
-    reticulate::source_python("rf_feature_importance.py")
-    rf_point_forecast_vector = rf(paste(input$year, sep=""), reference_quarter, "8Q")
-    rf_forecast_df = data.frame(DATE = forecast_seq_dates, 
-                                point_forecast = rf_point_forecast_vector)
-    print(rf_forecast_df)
+
+    # # print(rf_forecast_df)
     
-    
-    if (input$model_choice == "AR"){
+    if (input$model_choice == "Autoregressive Model (AR)"){
+      print("HERE AT AR AR AR")
+      ar_forecast_df <- ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+      # print(ar_forecast_df)
+      z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      # # print(z_crit_value)
+      ar_forecast_df = ar_forecast_df %>%
+        mutate(lower_forecast= point_forecast - z_crit_value *rmse,
+               upper_forecast = point_forecast + z_crit_value *rmse)
+      
+      print(ar_forecast_df)
 
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
       true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
       ar_forecast_df$tooltip <- paste("Date:", ar_forecast_df$DATE, "<br>Forecast:", round(ar_forecast_df$point_forecast, 2))
+      ar_forecast_df$tooltip_lower <- paste("Date:", ar_forecast_df$DATE, "<br>Lower Bound:", round(ar_forecast_df$lower_forecast, 2))
+      ar_forecast_df$tooltip_upper <- paste("Date:", ar_forecast_df$DATE, "<br>Upper Bound:", round(ar_forecast_df$upper_forecast, 2))
       
       gg <- ggplot() +
         #Historical Values before Vintage Point
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
-        #Clean Values from very last Vintage
-        geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
-        geom_point(data = ar_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = ar_forecast_df$tooltip), show.legend = TRUE) +
+        #geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+        #geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
         #Forecasted Point Forecast OOS
+        geom_point(data = ar_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = ar_forecast_df$tooltip), show.legend = TRUE) +
         geom_line(data = ar_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
-        geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
+        #Lower Bound for fanchart
+        geom_point(data = ar_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound", text = ar_forecast_df$tooltip_lower))) +
+        geom_line(data = ar_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        #Upper Bound for fanchart
+        geom_point(data = ar_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound", text = ar_forecast_df$tooltip_upper))) +
+        geom_line(data = ar_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        # Shading for fanchart
+        geom_ribbon(data = ar_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
         labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
-        scale_color_manual(values = c("Historical Change" = "black", "Actual Change" = "chartreuse2", "Forecasted Change" = "blue"),
+        scale_color_manual(values = c("Historical Change" = "black", 
+                                      "Actual Change" = "chartreuse2", 
+                                      "Forecasted Change" = "blue", 
+                                      "Lower Bound" = "orange",  
+                                      "Upper Bound" = "yellow"), 
                            name = "Legend Name") +
         theme(plot.title = element_text(hjust = 0.5), 
               legend.position = "bottom") +
         guides(color = guide_legend(title = "Legend Name"))
       
+      if (input$hide_line_point) {
+        #Clean Values from very last Vintage
+        gg <- gg + 
+          geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+          geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) + 
+          scale_color_manual(values = c("Historical Change" = "black", 
+                                        "Actual Change" = "chartreuse2", 
+                                        "Forecasted Change" = "blue", 
+                                        "Lower Bound" = "orange",  
+                                        "Upper Bound" = "yellow"), 
+                             name = "Legend Name")
+      }
+      
       plotly_plot <- ggplotly(gg, tooltip = "text")
       
       return(plotly_plot)
       
-    } else if (input$model_choice == "ADL") {
-      
+    } else if (input$model_choice == "Autoregressive Distributed Lag Model (ADL)") {
+      print("HERE AT ADL ADL ADL")
+      adl_forecast_df <- adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+      print(adl_forecast_df)
       z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
-      print(z_crit_value)
+     # # print(z_crit_value)
       adl_forecast_df = adl_forecast_df %>%
         mutate(lower_forecast = point_forecast - z_crit_value*rmse, 
                upper_forecast = point_forecast + z_crit_value*rmse)
-      print(adl_forecast_df)
+      # # print(adl_forecast_df)
       
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
       true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
       adl_forecast_df$tooltip <- paste("Date:", adl_forecast_df$DATE, "<br>Forecast:", round(adl_forecast_df$point_forecast, 2))
+      adl_forecast_df$tooltip_lower <- paste("Date:", adl_forecast_df$DATE, "<br>Lower Bound:", round(adl_forecast_df$lower_forecast, 2))
+      adl_forecast_df$tooltip_upper <- paste("Date:", adl_forecast_df$DATE, "<br>Upper Bound:", round(adl_forecast_df$upper_forecast, 2))
       
       gg <- ggplot() +
         #Historical Values before Vintage Point
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
-        #Clean Values from very last Vintage
-        geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
         #Forecasted Point Forecast OOS
         geom_point(data = adl_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = adl_forecast_df$tooltip), show.legend = TRUE) +
         geom_line(data = adl_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
-        geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
         #Lower Bound for fanchart
-        geom_point(data = adl_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        geom_point(data = adl_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound", text = adl_forecast_df$tooltip_lower))) +
         geom_line(data = adl_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
         #Upper Bound for fanchart
-        geom_point(data = adl_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        geom_point(data = adl_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound", text = adl_forecast_df$tooltip_upper))) +
         geom_line(data = adl_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        # Shading for fanchart
+        geom_ribbon(data = adl_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
         labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
-        scale_color_manual(values = c("Historical Change" = "black", "Actual Change" = "chartreuse2", "Forecasted Change" = "blue"),
-                           name = "Legend Name") +
+        scale_color_manual(values = c("Historical Change" = "black", 
+                                      "Actual Change" = "chartreuse2", 
+                                      "Forecasted Change" = "blue", 
+                                      "Lower Bound" = "orange",  
+                                      "Upper Bound" = "yellow"), 
+                           name = "Legend Name")  +
         theme(plot.title = element_text(hjust = 0.5), 
               legend.position = "bottom") +
         guides(color = guide_legend(title = "Legend Name"))
       
+      if (input$hide_line_point) {
+        #Clean Values from very last Vintage
+        gg <- gg + 
+          geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+          geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) + 
+          scale_color_manual(values = c("Historical Change" = "black", 
+                                        "Actual Change" = "chartreuse2", 
+                                        "Forecasted Change" = "blue", 
+                                        "Lower Bound" = "orange",  
+                                        "Upper Bound" = "yellow"), 
+                             name = "Legend Name")
+      }
+      
       plotly_plot <- ggplotly(gg, tooltip = "text")
       
-      print("hello ADL")
-      print(adl_forecast_df)
+      # print("hello ADL")
+      # # print(adl_forecast_df)
       return(plotly_plot)
       
     } else if (input$model_choice == "Random Forest"){
-      print("hello random forest")
-      print(rf_forecast_df)
+      # print("hello random forest")
+     #  # print(rf_forecast_df)
+      z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      rf_forecast_df <- rf_setup(reference_year, reference_quarter, forecast_seq_dates)
+      rf_forecast_df = rf_forecast_df %>%
+        mutate(lower_forecast = point_forecast - z_crit_value*rmse,
+               upper_forecast = point_forecast + z_crit_value*rmse)
       
       # Prepare the tooltip content for each dataset
       subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
       true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
       rf_forecast_df$tooltip <- paste("Date:", rf_forecast_df$DATE, "<br>Forecast:", round(rf_forecast_df$point_forecast, 2))
+      rf_forecast_df$tooltip_lower <- paste("Date:", rf_forecast_df$DATE, "<br>Lower Bound:", round(rf_forecast_df$lower_forecast, 2))
+      rf_forecast_df$tooltip_upper <- paste("Date:", rf_forecast_df$DATE, "<br>Upper Bound:", round(rf_forecast_df$upper_forecast, 2))
       
       gg <- ggplot() +
         #Historical Values before Vintage Point
         geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
-        #Clean Values from very last Vintage
-        geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
         #Forecasted Point Forecast OOS
-        geom_point(data = rf_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = adl_forecast_df$tooltip), show.legend = TRUE) +
+        geom_point(data = rf_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = rf_forecast_df$tooltip), show.legend = TRUE) +
         geom_line(data = rf_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
-        geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) +
         #Lower Bound for fanchart
-        #geom_point(data = rf_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
-        #geom_line(data = rf_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        geom_point(data = rf_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound", text = rf_forecast_df$tooltip_lower))) +
+        geom_line(data = rf_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
         #Upper Bound for fanchart
-        #geom_point(data = rf_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
-        #geom_line(data = rf_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        geom_point(data = rf_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        geom_line(data = rf_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound", text = rf_forecast_df$tooltip_upper))) +
+        # Shading for fanchart
+        geom_ribbon(data = rf_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
         labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
-        scale_color_manual(values = c("Historical Change" = "black", "Actual Change" = "chartreuse2", "Forecasted Change" = "blue"),
+        scale_color_manual(values = c("Historical Change" = "black", 
+                                      "Actual Change" = "chartreuse2", 
+                                      "Forecasted Change" = "blue", 
+                                      "Lower Bound" = "orange",  
+                                      "Upper Bound" = "yellow"), 
                            name = "Legend Name") +
         theme(plot.title = element_text(hjust = 0.5), 
               legend.position = "bottom") +
         guides(color = guide_legend(title = "Legend Name"))
       
+      if (input$hide_line_point) {
+        #Clean Values from very last Vintage
+        gg <- gg + 
+          geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+          geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) + 
+          scale_color_manual(values = c("Historical Change" = "black", 
+                                        "Actual Change" = "chartreuse2", 
+                                        "Forecasted Change" = "blue", 
+                                        "Lower Bound" = "orange",  
+                                        "Upper Bound" = "yellow"), 
+                             name = "Legend Name")
+      }
+      
       plotly_plot <- ggplotly(gg, tooltip = "text")
       return(plotly_plot)
       
-    }
+    } else if (input$model_choice == "Combined"){
+      print("HERE AT COMBINED COMBINED")
+      combined_forecast_df <- combined_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept, forecast_seq_dates)
+      
+      z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+      # # print(z_crit_value)
+      combined_forecast_df = combined_forecast_df %>%
+        mutate(lower_forecast = point_forecast - z_crit_value*rmse,
+               upper_forecast = point_forecast + z_crit_value*rmse)
+      # print(adl_forecast_df)
+      
+      # Prepare the tooltip content for each dataset
+      subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
+      true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
+      combined_forecast_df$tooltip <- paste("Date:", combined_forecast_df$DATE, "<br>Forecast:", round(combined_forecast_df$point_forecast, 2))
+      combined_forecast_df$tooltip_lower <- paste("Date:", combined_forecast_df$DATE, "<br>Lower Bound:", round(combined_forecast_df$lower_forecast, 2))
+      combined_forecast_df$tooltip_upper <- paste("Date:", combined_forecast_df$DATE, "<br>Upper Bound:", round(combined_forecast_df$upper_forecast, 2))
+      
+      gg <- ggplot() +
+        #Historical Values before Vintage Point
+        geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
+        #Forecasted Point Forecast OOS
+        geom_point(data = combined_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = combined_forecast_df$tooltip), show.legend = TRUE) +
+        geom_line(data = combined_forecast_df, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
+        #Lower Bound for fanchart
+        geom_point(data = combined_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound", text = combined_forecast_df$tooltip_lower))) +
+        geom_line(data = combined_forecast_df, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        #Upper Bound for fanchart
+        geom_point(data = combined_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound", text = combined_forecast_df$tooltip_upper))) +
+        geom_line(data = combined_forecast_df, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        # Shading for fanchart
+        geom_ribbon(data = combined_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
+        #X intercept
+        geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
+        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        scale_x_yearqtr(format = "%Y Q%q") +
+        scale_color_manual(values = c("Historical Change" = "black", 
+                                      "Actual Change" = "chartreuse2", 
+                                      "Forecasted Change" = "blue", 
+                                      "Lower Bound" = "orange",  
+                                      "Upper Bound" = "yellow"), 
+                           name = "Legend Name")  +
+        theme(plot.title = element_text(hjust = 0.5), 
+              legend.position = "bottom") +
+        guides(color = guide_legend(title = "Legend Name"))
+      
+      if (input$hide_line_point) {
+        #Clean Values from very last Vintage
+        gg <- gg + 
+          geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+          geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) + 
+          scale_color_manual(values = c("Historical Change" = "black", 
+                                        "Actual Change" = "chartreuse2", 
+                                        "Forecasted Change" = "blue", 
+                                        "Lower Bound" = "orange",  
+                                        "Upper Bound" = "yellow"), 
+                             name = "Legend Name")
+      }
+      
+      plotly_plot <- ggplotly(gg, tooltip = "text")
+      
+      # print("hello ADL")
+      # # print(adl_forecast_df)
+      return(plotly_plot)
+    } else if (input$model_choice == "Most Optimal"){
+      print("Optimized Model HERE HERE HERE")
+      # 1. ar 2. adl 3. rf 4. combined
+      actual_values <- c()
+      rmse_values <- c()
+      adl_models_rmse <- c()
+      ar_models_rmse <- c()
+      combined_models_rmse <- c()
+      rf_models_rmse <- c()
+      
+      
+      for(i in 1:8){
+        optimal_adl_model <- fit_adl(reference_year, reference_quarter, routput_gdp, hstart_gdp, i, 8)
+        adl_rmse <- ADLbacktest(reference_year, reference_quarter, optimal_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, i, 8)$rmse
+        adl_models_rmse<- c(adl_models_rmse,  adl_rmse)
+        
+        optimal_ar_model <- fitAR_model(reference_year, reference_quarter, stat_gdp, i, 8)
+        ar_rmse <- ARBacktest(reference_year, reference_quarter, optimal_ar_model, stat_gdp, gdp_date, i, 8)$rmse
+        ar_models_rmse <- c(ar_models_rmse, ar_rmse)
+        
+        
+        combined_models_list <- average_backtest(reference_year, reference_quarter, stat_gdp, gdp_date, hstart_gdp, hstart_date, i, 8)
+        combined_rmse <- combined_models_list$rmse
+        combined_models_rmse <- c(combined_models_rmse, combined_rmse)
+        
+        rf_prediction_vector <- combined_models_list$rf_predictions_vector
+        actual_vector <- combined_models_list$actual_values
+        rf_mse <- mean((actual_vector-rf_prediction_vector)^2)
+        rf_rmse <- sqrt(rf_mse)
+        rf_models_rmse <- c(rf_models_rmse, rf_rmse)
+        
+        
+
+      }
+      rmse_values <- c(ar_models_rmse, adl_models_rmse, rf_models_rmse, combined_models_rmse)
+      
+      index_smallest = which.min(rmse_values)
+      final_dataframe = data.frame()
+      if(index_smallest == 1){
+        final_dataframe <- ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+        # print(ar_forecast_df)
+        z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+        # # print(z_crit_value)
+        final_dataframe = final_dataframe %>%
+          mutate(lower_forecast= point_forecast - z_crit_value *rmse,
+                 upper_forecast = point_forecast + z_crit_value *rmse)
+        
+      } else if (index_smallest == 2){
+          final_dataframe <- adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+          z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+          # # print(z_crit_value)
+          final_dataframe = final_dataframe %>%
+            mutate(lower_forecast = point_forecast - z_crit_value*rmse, 
+                   upper_forecast = point_forecast + z_crit_value*rmse)
+        
+      } else if (index_smallest == 3){
+          final_dataframe <- rf_setup(reference_year, reference_quarter, forecast_seq_dates)
+        
+      } else {
+        final_dataframe <- combined_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept, forecast_seq_dates)
+        
+        z_crit_value = qnorm((alpha/2), lower.tail=FALSE)
+        # # print(z_crit_value)
+        final_dataframe = final_dataframe %>%
+          mutate(lower_forecast = point_forecast - z_crit_value*rmse,
+                 upper_forecast = point_forecast + z_crit_value*rmse)
+        
+      }
+      subset_df$tooltip <- paste("Date:", subset_df$DATE, "<br>Value:", round(subset_df[[reference_col]], 2))
+      true_df$tooltip <- paste("Date:", true_df$DATE, "<br>Value:", round(true_df[[last_available_vintage]], 2))
+      final_dataframe$tooltip <- paste("Date:", final_dataframe$DATE, "<br>Forecast:", round(final_dataframe$point_forecast, 2))
+      final_dataframe$tooltip_lower <- paste("Date:", final_dataframe$DATE, "<br>Lower Bound:", round(final_dataframe$lower_forecast, 2))
+      final_dataframe$tooltip_upper <- paste("Date:", final_dataframe$DATE, "<br>Upper Bound:", round(final_dataframe$upper_forecast, 2))
+      
+      
+      gg <- ggplot() +
+        #Historical Values before Vintage Point
+        geom_line(data = subset_df, aes(x = DATE, y = !!sym(reference_col), color = "Historical Change"), show.legend = TRUE) +
+        #Forecasted Point Forecast OOS
+        geom_point(data = final_dataframe, aes(x = DATE, y = point_forecast, color = "Forecasted Change", text = final_dataframe$tooltip), show.legend = TRUE) +
+        geom_line(data = final_dataframe, aes(x = DATE, y = point_forecast, color = "Forecasted Change"), show.legend = FALSE) +
+        #Lower Bound for fanchart
+        geom_point(data = final_dataframe, (aes(x = DATE, y = lower_forecast, color = "Lower Bound", text = final_dataframe$tooltip_lower))) +
+        geom_line(data = final_dataframe, (aes(x = DATE, y = lower_forecast, color = "Lower Bound"))) +
+        #Upper Bound for fanchart
+        geom_point(data = final_dataframe, (aes(x = DATE, y = upper_forecast, color = "Upper Bound", text = final_dataframe$tooltip_upper))) +
+        geom_line(data = final_dataframe, (aes(x = DATE, y = upper_forecast, color = "Upper Bound"))) +
+        # Shading for fanchart
+        geom_ribbon(data = final_dataframe, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
+        #X intercept
+        geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
+        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        scale_x_yearqtr(format = "%Y Q%q") +
+        scale_color_manual(values = c("Historical Change" = "black", 
+                                      "Actual Change" = "chartreuse2", 
+                                      "Forecasted Change" = "blue", 
+                                      "Lower Bound" = "orange",  
+                                      "Upper Bound" = "yellow"), 
+                           name = "Legend Name")  +
+        theme(plot.title = element_text(hjust = 0.5), 
+              legend.position = "bottom") +
+        guides(color = guide_legend(title = "Legend Name"))
+      
+      if (input$hide_line_point) {
+        #Clean Values from very last Vintage
+        gg <- gg + 
+          geom_line(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change"), show.legend = TRUE) +
+          geom_point(data = true_df, aes(x = DATE, y = !!as.name(last_available_vintage), color = "Actual Change", text = true_df$tooltip), show.legend = TRUE) + 
+          scale_color_manual(values = c("Historical Change" = "black", 
+                                        "Actual Change" = "chartreuse2", 
+                                        "Forecasted Change" = "blue", 
+                                        "Lower Bound" = "orange",  
+                                        "Upper Bound" = "yellow"), 
+                             name = "Legend Name")
+      }
+      
+      plotly_plot <- ggplotly(gg, tooltip = "text")
+      
+      # print("hello ADL")
+      # # print(adl_forecast_df)
+      return(plotly_plot)
+      
+      
+      
+    } 
 
   })
   
@@ -1116,12 +1606,127 @@ server <- function(input, output, session) {
     #to form the colname required to subset from the dataframe
     reference_col = paste(col_prefix, reference_year, reference_quarter, sep="")
     
-    print(reference_col)
+    # # print(reference_col)
     
     stat_df %>%
       select(DATE, reference_col) %>%
       DT::datatable()
   })
+  
+  observeEvent(input$display_new_GDP, {
+    text_about = "hello"
+    showModal(modalDialog(text_about, title="Me"))
+    
+  })
+  
+  output$stats_table = DT::renderDT({
+    prevInputs <- reactiveValues(year = NULL, quarter = NULL)
+    observe({
+      # Current year and quarter input values
+      currentYear <- input$year
+      currentQuarter <- input$quarter
+      
+      # Check if current inputs are different from the previous ones
+      if (is.null(prevInputs$year) || is.null(prevInputs$quarter) || 
+          currentYear != prevInputs$year || currentQuarter != prevInputs$quarter) {
+        
+        print(paste("CurrentYear:",  currentYear, "PrevYear:", prevInputs$year))
+        
+        # Update previous input values
+        prevInputs$year <- currentYear
+        prevInputs$quarter <- currentQuarter
+        
+        # Perform your operation here
+        # For example, this could be a print statement or a more complex operation
+        print(paste("Year:", currentYear, "Quarter:", currentQuarter))
+        
+        # If using setup_adl() or similar, trigger it here
+        # result <- setup_adl(currentYear, currentQuarter)
+        # use the result as needed
+      }
+    })
+    col_prefix = "ROUTPUT"
+    #to get the last two digit of the user's input year
+    reference_year = substr(input$year, start = 3, stop = 4)
+    #to get the chosen quarter by the user
+    reference_quarter = input$quarter
+    #to form the colname required to subset from the dataframe
+    reference_col = paste(col_prefix, reference_year, reference_quarter, sep="")
+    
+    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+    
+    reference_quarter_numeric = as.numeric(substr(input$quarter, star = nchar(input$quarter), stop = nchar(input$quarter)))
+    if (reference_quarter_numeric == 1){
+      x_intercept_quarter = 4
+      x_intercept_quarter = paste("Q", x_intercept_quarter)
+      x_intercept_year = input$year - 1
+    } else{
+      x_intercept_quarter = reference_quarter_numeric - 1
+      x_intercept_quarter = paste("Q", x_intercept_quarter)
+      x_intercept_year = input$year
+    }
+    
+    x_intercept = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
+    x_intercept_numeric = as.numeric(x_intercept) 
+    
+    
+    # showing the "true" values for 8 steps ahead from user's vintage point
+    
+    # very last col available in the data 
+    true_value_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    true_value_seq_dates = seq(true_value_start_date, length.out = 8, by = 1/4)
+    
+    #true_value_start_date = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
+    #true_value_seq_dates = seq(true_value_start_date, length.out = 9, by = 1/4)
+    
+    last_available_vintage = get_last_available_vintage(stat_df)
+    true_df = stat_df %>% 
+      select(DATE, last_available_vintage) %>%
+      filter(DATE %in% true_value_seq_dates)
+    
+    ar_forecast_df = ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+    
+    ar_forecast_df = ar_forecast_df %>%
+      filter(DATE %in% true_value_seq_dates) 
+    
+    stat_display_df = data.frame(Forecast_Horizon =1:nrow(ar_forecast_df), 
+                                 AR_RMSE = round(ar_forecast_df$rmse, 3))
+    
+    
+    if (input$model_choice == "Autoregressive Model (AR)"){
+      stat_display_df = stat_display_df %>%
+        select(-Forecast_Horizon)
+      stat_display_df = t(stat_display_df)
+      DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
+    } else if (input$model_choice == "Autoregressive Distributed Lag Model (ADL)") {
+      adl_forecast_df = adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+      adl_forecast_df = adl_forecast_df %>%
+        filter(DATE %in% true_value_seq_dates)
+      stat_display_df = stat_display_df %>%
+        mutate(ADL_RMSE = round(adl_forecast_df$rmse, 3)) %>%
+        select(-Forecast_Horizon)
+      stat_display_df = t(stat_display_df)
+      DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
+    } else if (input$model_choice == "Random Forest") {
+      rf_forecast_df = rf_setup(reference_year, reference_quarter, forecast_seq_dates)
+      stat_display_df = stat_display_df %>%
+        mutate(RF_RMSE = round(rf_forecast_df$rmse, 3)) %>%
+        select(-Forecast_Horizon)
+      stat_display_df = t(stat_display_df)
+      DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
+    } else if (input$model_choice == "Combined Forecast"){
+      combined_forecast_df <- combined_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept, forecast_seq_dates)
+      print("this is stat table combined forecast")
+      print(combined_forecast_df)
+      stat_display_df = stat_display_df %>%
+        mutate(Combined_Forecast_RMSE = round(combined_forecast_df$rmse, 3)) %>%
+        select(-Forecast_Horizon)
+      stat_display_df = t(stat_display_df)
+      DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
+    }
+  })
+  
   
   observeEvent(input$show_about, {
     text_about = "As one of the fundamental indicators of economic activity and a pivotal metric guiding policy decisions, precise forecasting of GDP is imperative for policymakers, businesses, and individuals. However, GDP figures often undergo revisions, resulting in disparities between initial projections and final numbers. These revisions can profoundly influence the dependability and efficacy of macroeconomic forecasting models when operating with real-time data.
@@ -1131,14 +1736,119 @@ Hence, our project endeavors to construct and assess resilient forecasting model
     
   })
   
+  
   output$plot_description <- renderText({
-    if (input$model_choice == "AR"){
+    if (input$model_choice == "Autoregressive Model (AR)"){
       title <- "Plot Description"
       description <- "We used an autoregressive (AR) model to forecast GDP values. In this case, GDP values are being forecasted based on their own past values.
     In our model, through estimating the optimal lag lengths, it selects the most relevant past GDP values to predict future trends."
       paste(title, description, sep = ": ")
     }
+  })
+  
+  output$table_forecast = renderTable({
 
+    col_prefix = "ROUTPUT"
+    #to get the last two digit of the user's input year
+    reference_year = substr(input$year, start = 3, stop = 4)
+    #to get the chosen quarter by the user
+    reference_quarter = input$quarter
+    #to form the colname required to subset from the dataframe
+    reference_col = paste(col_prefix, reference_year, reference_quarter, sep="")
+    
+    forecast_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    forecast_seq_dates = seq(forecast_start_date, length.out = 8, by = 1/4)
+    
+    reference_quarter_numeric = as.numeric(substr(input$quarter, star = nchar(input$quarter), stop = nchar(input$quarter)))
+    if (reference_quarter_numeric == 1){
+      x_intercept_quarter = 4
+      x_intercept_quarter = paste("Q", x_intercept_quarter)
+      x_intercept_year = input$year - 1
+    } else{
+      x_intercept_quarter = reference_quarter_numeric - 1
+      x_intercept_quarter = paste("Q", x_intercept_quarter)
+      x_intercept_year = input$year
+    }
+    
+    x_intercept = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
+    x_intercept_numeric = as.numeric(x_intercept) 
+    
+    
+    # showing the "true" values for 8 steps ahead from user's vintage point
+    
+    # very last col available in the data 
+    true_value_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
+    true_value_seq_dates = seq(true_value_start_date, length.out = 8, by = 1/4)
+    
+    #true_value_start_date = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
+    #true_value_seq_dates = seq(true_value_start_date, length.out = 9, by = 1/4)
+    
+    last_available_vintage = get_last_available_vintage(stat_df)
+    true_df = stat_df %>% 
+      select(DATE, last_available_vintage) %>%
+      filter(DATE %in% true_value_seq_dates)
+    
+    
+    if (input$model_choice == "Autoregressive Model (AR)") {
+      print("inside table forecast")
+      ar_forecast_df = ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+      
+      print(ar_forecast_df)
+      ar_forecast_df = ar_forecast_df %>%
+        filter(DATE %in% true_value_seq_dates) 
+      
+      table_forecast_df = ar_forecast_df %>%
+        select(DATE, point_forecast) 
+      
+      combined_df = full_join(true_df, table_forecast_df, by = "DATE") 
+      summary_df = combined_df %>%
+        select(DATE, last_available_vintage, point_forecast)%>%
+        mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
+        mutate(DATE = format(DATE, "%Y-Q%q")) %>%
+        rename(Date = DATE,
+               Residual = Difference, 
+               "Latest Vintage Values" = ROUTPUT24Q1, 
+               "Point Forecast" = point_forecast)
+      
+    } else if(input$model_choice == "Autoregressive Distributed Lag Model (ADL)") {
+      
+      adl_forecast_df = adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
+      adl_forecast_df = adl_forecast_df %>%
+        filter(DATE %in% true_value_seq_dates)
+      
+      table_forecast_df = adl_forecast_df %>%
+        select(DATE, point_forecast)
+      
+      combined_df = full_join(true_df, table_forecast_df, by = "DATE") 
+      summary_df = combined_df %>%
+        select(DATE, ROUTPUT24Q1, point_forecast)%>%
+        mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
+        mutate(DATE = format(DATE, "%Y-Q%q")) %>%
+        rename(Date = DATE,
+               Residual = Difference, 
+               "Latest Vintage Values" = ROUTPUT24Q1, 
+               "Point Forecast" = point_forecast)
+    } else if (input$model_choice == "Random Forest") {
+      
+      rf_forecast_df = rf_setup(reference_year, reference_quarter, forecast_seq_dates) 
+      table_forecast_df = data.frame(DATE = true_value_seq_dates, 
+                                     point_forecast = rf_forecast_df$point_forecast)
+      
+      combined_df = full_join(true_df, table_forecast_df, by = "DATE") 
+      summary_df = combined_df %>%
+        select(DATE, ROUTPUT24Q1, point_forecast)%>%
+        mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
+        mutate(DATE = format(DATE, "%Y-Q%q")) %>%
+        rename(Date = DATE,
+               Residual = Difference, 
+               "Latest Vintage Values" = ROUTPUT24Q1, 
+               "Point Forecast" = point_forecast)
+      
+    }
+     
+
+    
+    
   })
   
   output$rf_feature_importance = renderPlot({
@@ -1212,21 +1922,22 @@ Hence, our project endeavors to construct and assess resilient forecasting model
       long_df <- tidyr::pivot_longer(mutated_df, cols = -category, names_to = "t", values_to = "value")
       
       # Plot stacked bar chart
-      ggplot(long_df, aes(x = category, y = value, fill = t)) +
+      gg = ggplot(long_df, aes(x = category, y = value, fill = t)) +
         geom_bar(stat = "identity") +
         labs(x = "Category", y = "Feature Importance", fill = "Time") +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
-    }
+    } 
   })
   
   
 }
+  
+  
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
-
 
 
 
