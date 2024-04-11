@@ -1,0 +1,455 @@
+---
+title: "DSE3101"
+output: html_notebook
+---
+
+```{r}
+library("BVAR")
+library(readxl)
+library(dplyr)
+```
+
+```{r}
+# Read the Excel file using the correct file path
+gdp <- read_excel("~/Desktop/ROUTPUTQvQd-2.xlsx")
+# Convert all columns except the first one (which contains dates) to numeric, keeping NA values as NA
+gdp_num <- gdp[, 2:ncol(gdp)]
+gdp_num <- mutate_all(gdp_num, as.numeric)
+gdp_date <-gdp[,1]
+```
+
+
+```{r}
+#tcode= 5
+fred_code('GDPC1', type = c("fred_md", "fred_md"), table = TRUE)
+
+# Repeat the transformation code for each column in gdp_num
+transformation_codes <- rep(5, ncol(gdp_num))
+
+# Apply the fred_transform function with the transformation codes
+stat_gdp <- fred_transform(data = gdp_num, type = "fred_md", code = transformation_codes, lag=1, na.rm= FALSE)
+
+```
+
+
+```{r}
+combined_data <- cbind(gdp_date, stat_gdp)
+# Write the combined data to a CSV file
+write.csv(combined_data, file = "~/Desktop/dse3101/gdp.csv", row.names = FALSE)
+```
+
+Repeat for other predictors
+
+1.Real Personal Consumption Expenditures: Total (RCON)
+tcode =5
+```{r}
+rcon <- read_excel("~/Desktop/dse3101/RCONQvQd-2.xlsx")
+rcon_num <- mutate_all(gdp[, 2:ncol(gdp)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rcon_num))
+
+stat_rcon <- fred_transform(data = rcon_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rcon_data <- cbind(gdp_date, stat_rcon)
+write.csv(rcon_data, file = "~/Desktop/dse3101/data/rcon.csv", row.names = FALSE)
+
+```
+
+
+2. Real Personal Consumption Expenditures: Services (RCONS)
+tcode=5
+```{r}
+rcons <- read_excel("~/Desktop/dse3101/RCONSQvQd.xlsx")
+rcons_num <- mutate_all(rcons[, 2:ncol(rcons)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rcons_num))
+
+stat_rcons <- fred_transform(data = rcons_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rcons_data <- cbind(gdp_date, stat_rcons)
+write.csv(rcons_data, file = "~/Desktop/dse3101/data/rcons.csv", row.names = FALSE)
+```
+3. Real Gross Private Domestic Investment: Nonresidential (RINVBF)
+tcode = 5
+```{r}
+rinvbfs <- read_excel("~/Desktop/dse3101/rinvbfQvQd.xlsx")
+rinvbfs_num <- mutate_all(rinvbfs[, 2:ncol(rinvbfs)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rinvbfs_num))
+
+stat_rinvbfs <- fred_transform(data = rinvbfs_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rinvbfs_data <- cbind(gdp_date, stat_rinvbfs)
+write.csv(rinvbfs_data, file = "~/Desktop/dse3101/data/rinvbf.csv", row.names = FALSE)
+
+```
+4 Real Gross Private Domestic Investment: Residential (RINVRESID)
+tcode=5
+```{r}
+rinvrsid <- read_excel("~/Desktop/dse3101/rinvresidQvQd.xlsx")
+rinvrsid_num <- mutate_all(rinvrsid[, 2:ncol(rinvrsid)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rinvrsid_num))
+
+stat_rinvrsid <- fred_transform(data = rinvrsid_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rinvrsid_data <- cbind(gdp_date, stat_rinvrsid)
+write.csv(rinvrsid_data, file = "~/Desktop/dse3101/data/rinvrsid.csv", row.names = FALSE)
+
+```
+
+5. Real Net Exports of Goods and Services (RNX)
+tcode=2
+```{r}
+rnx <- read_excel("~/Desktop/dse3101/RNXQvQd.xlsx")
+rnx_num <- mutate_all(rnx[, 2:ncol(rnx)], as.numeric)
+
+transformation_codes <- rep(2, ncol(rnx_num))
+
+stat_rnx <- fred_transform(data = rnx_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rnx_data <- cbind(gdp_date, stat_rnx)
+write.csv(rnx_data, file = "~/Desktop/dse3101/data/rnx.csv", row.names = FALSE)
+
+```
+6.Real Exports of Goods and Services (REX)
+tcode=5
+```{r}
+rex <- read_excel("~/Desktop/dse3101/REXQvQd.xlsx")
+rex_num <- mutate_all(rex[, 2:ncol(rex)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rex_num))
+
+stat_rex <- fred_transform(data = rex_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rex_data <- cbind(gdp_date, stat_rex)
+write.csv(rex_data, file = "~/Desktop/dse3101/data/rex.csv", row.names = FALSE)
+```
+7.Real Imports of Goods and Services (RIMP)
+tcode=5
+```{r}
+rimp <- read_excel("~/Desktop/dse3101/RIMPQvQd.xlsx")
+rimp_num <- mutate_all(rimp[, 2:ncol(rimp)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rimp_num))
+
+stat_rimp <- fred_transform(data = rimp_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rimp_data <- cbind(gdp_date, stat_rimp)
+write.csv(rimp_data, file = "~/Desktop/dse3101/data/rimp.csv", row.names = FALSE)
+```
+
+8.Real Government Consumption & Gross Investment: Total (RG)
+tcode=5
+```{r}
+rg <- read_excel("~/Desktop/dse3101/RGQvQd.xlsx")
+rg_num <- mutate_all(rg[, 2:ncol(rg)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rg_num))
+
+stat_rg <- fred_transform(data = rg_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rg_data <- cbind(gdp_date, stat_rg)
+write.csv(rg_data, file = "~/Desktop/dse3101/data/rg.csv", row.names = FALSE)
+```
+9.Real Government Consumption & Gross Investment: Federal (RGF)
+tcode=5
+```{r}
+rgf <- read_excel("~/Desktop/dse3101/RGFQvQd.xlsx")
+rgf_num <- mutate_all(rgf[, 2:ncol(rgf)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rgf_num))
+
+stat_rgf <- fred_transform(data = rgf_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rgf_data <- cbind(gdp_date, stat_rgf)
+write.csv(rgf_data, file = "~/Desktop/dse3101/data/rgf.csv", row.names = FALSE)
+```
+10.Real Government Consumption & Gross Investment: State and Local (RGSL)
+tcode=5
+```{r}
+rgsl <- read_excel("~/Desktop/dse3101/RGSLQvQd.xlsx")
+rgsl_num <- mutate_all(rgsl[, 2:ncol(rgsl)], as.numeric)
+
+transformation_codes <- rep(5, ncol(rgsl_num))
+
+stat_rgsl <- fred_transform(data = rgsl_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rgsl_data <- cbind(gdp_date, stat_rgsl)
+write.csv(rgsl_data, file = "~/Desktop/dse3101/data/rgsl.csv", row.names = FALSE)
+```
+11.Real Household Consumption Expenditures (RCONHH)
+tcode=6
+```{r}
+rconhh <- read_excel("~/Desktop/dse3101/rconhhQvQd.xlsx")
+rconhh_num <- mutate_all(rconhh[, 2:ncol(rconhh)], as.numeric)
+rconhh_date <- rconhh[,1]
+transformation_codes <- rep(6, ncol(rconhh_num))
+
+stat_rconhh <- fred_transform(data = rconhh_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rconhh_data <- cbind(rconhh_date, stat_rconhh)
+write.csv(rconhh_data, file = "~/Desktop/dse3101/data/rconhh_09Q3.csv", row.names = FALSE)
+```
+
+12.Real Final Consumption Expenditures of NPISH (RCONSNP)
+tcode=6
+```{r}
+rconsnp <- read_excel("~/Desktop/dse3101/rconsnpQvQd.xlsx")
+rconsnp_num <- mutate_all(rconsnp[, 2:ncol(rconsnp)], as.numeric)
+rconsnp_date <- rconsnp[,1]
+transformation_codes <- rep(6, ncol(rconsnp_num))
+
+stat_rconsnp <- fred_transform(data = rconsnp_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+rconsnp_data <- cbind(rconsnp_date, stat_rconsnp)
+write.csv(rconsnp_data, file = "~/Desktop/dse3101/data/rconsnp_09Q3.csv", row.names = FALSE)
+```
+13.Wage and Salary Disbursements (WSD)
+tcode=5 (real disposable income)
+```{r}
+wsd <- read_excel("~/Desktop/dse3101/wsdQvQd.xlsx")
+wsd_num <- mutate_all(wsd[, 2:ncol(wsd)], as.numeric)
+wsd_date <- wsd[,1]
+transformation_codes <- rep(5, ncol(wsd_num))
+
+stat_wsd <- fred_transform(data = wsd_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+wsd_data <- cbind(wsd_date, stat_wsd)
+write.csv(wsd_data, file = "~/Desktop/dse3101/data/wsd.csv", row.names = FALSE)
+```
+
+
+14.Other Labor Income (OLI)
+tcode=5
+```{r}
+oli <- read_excel("~/Desktop/dse3101/oliQvQd.xlsx")
+oli_num <- mutate_all(oli[, 2:ncol(oli)], as.numeric)
+oli_date <- oli[,1]
+transformation_codes <- rep(5, ncol(oli_num))
+
+stat_oli <- fred_transform(data = oli_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+oli_data <- cbind(oli_date, stat_oli)
+write.csv(oli_data, file = "~/Desktop/dse3101/data/oli.csv", row.names = FALSE)
+```
+15. Proprietors' Income (PROPI)
+
+tcode=5
+```{r}
+propi <- read_excel("~/Desktop/dse3101/propiQvQd.xlsx")
+propi_num <- mutate_all(propi[, 2:ncol(propi)], as.numeric)
+propi_date <- propi[,1]
+transformation_codes <- rep(5, ncol(propi_num))
+
+stat_propi <- fred_transform(data = propi_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+propi_data <- cbind(propi_date, stat_propi)
+write.csv(propi_data, file = "~/Desktop/dse3101/data/propi.csv", row.names = FALSE)
+```
+
+16. Personal Interest Income (PINTI)
+
+tcode=5
+```{r}
+pinti <- read_excel("~/Desktop/dse3101/pintiQvQd.xlsx")
+pinti_num <- mutate_all(pinti[, 2:ncol(pinti)], as.numeric)
+pinti_date <- pinti[,1]
+transformation_codes <- rep(5, ncol(pinti_num))
+
+stat_pinti <- fred_transform(data = pinti_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+pinti_data <- cbind(pinti_date, stat_pinti)
+write.csv(pinti_data, file = "~/Desktop/dse3101/data/pinti.csv", row.names = FALSE)
+```
+
+17.Personal Tax & Nontax Payments (PTAX)
+tcode=5
+```{r}
+ptax <- read_excel("~/Desktop/dse3101/ptaxQvQd.xlsx")
+ptax_num <- mutate_all(ptax[, 2:ncol(ptax)], as.numeric)
+ptax_date <- ptax[,1]
+transformation_codes <- rep(5, ncol(ptax_num))
+
+stat_ptax <- fred_transform(data = ptax_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+ptax_data <- cbind(ptax_date, stat_ptax)
+write.csv(ptax_data, file = "~/Desktop/dse3101/data/ptax.csv", row.names = FALSE)
+```
+
+18.Interest Paid by Consumers (PINTPAID)
+
+tcode=5
+```{r}
+pintpaid <- read_excel("~/Desktop/dse3101/pintpaidQvQd.xlsx")
+pintpaid_num <- mutate_all(pintpaid[, 2:ncol(pintpaid)], as.numeric)
+pintpaid_date <- pintpaid[,1]
+transformation_codes <- rep(5, ncol(pintpaid_num))
+
+stat_pintpaid <- fred_transform(data = pintpaid_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+pintpaid_data <- cbind(pintpaid_date, stat_pintpaid)
+write.csv(pintpaid_data, file = "~/Desktop/dse3101/data/pintpaid.csv", row.names = FALSE)
+```
+19.Personal Saving Rate, Constructed (RATESAV)
+
+tcode=1
+```{r}
+ratesav <- read_excel("~/Desktop/dse3101/ratesavQvQd.xlsx")
+ratesav_num <- mutate_all(ratesav[, 2:ncol(ratesav)], as.numeric)
+ratesav_date <- ratesav[,1]
+transformation_codes <- rep(1, ncol(ratesav_num))
+
+stat_ratesav <- fred_transform(data = ratesav_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+ratesav_data <- cbind(ratesav_date, stat_ratesav)
+write.csv(ratesav_data, file = "~/Desktop/dse3101/data/ratesav.csv", row.names = FALSE)
+```
+20.M1 Money Stock (M1)
+
+tcode=5
+```{r}
+m1 <- read_excel("~/Desktop/dse3101/m1QvMd.xlsx")
+m1_num <- mutate_all(m1[, 2:ncol(m1)], as.numeric)
+m1_date <- m1[,1]
+transformation_codes <- rep(5, ncol(m1_num))
+
+stat_m1 <- fred_transform(data = m1_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+m1_data <- cbind(m1_date, stat_m1)
+write.csv(m1_data, file = "~/Desktop/dse3101/data/m1_md.csv", row.names = FALSE)
+```
+
+21.Consumer Price Index, Quarterly Vintages (CPI)
+
+tcode=6
+```{r}
+cpi <- read_excel("~/Desktop/dse3101/cpiQvMd.xlsx")
+cpi_num <- mutate_all(cpi[, 2:ncol(cpi)], as.numeric)
+cpi_date <- cpi[,1]
+transformation_codes <- rep(6, ncol(cpi_num))
+
+stat_cpi <- fred_transform(data = cpi_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+cpi_data <- cbind(cpi_date, stat_cpi)
+write.csv(cpi_data, file = "~/Desktop/dse3101/data/cpi_md94Q3.csv", row.names = FALSE)
+```
+22.Price Index for GNP/GDP (P)
+
+tcode=5
+```{r}
+p <- read_excel("~/Desktop/dse3101/PQvQd.xlsx")
+p_num <- mutate_all(p[, 2:ncol(p)], as.numeric)
+p_date <- p[,1]
+transformation_codes <- rep(5, ncol(p_num))
+
+stat_p <- fred_transform(data = p_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+p_data <- cbind(p_date, stat_p)
+write.csv(p_data, file = "~/Desktop/dse3101/data/p.csv", row.names = FALSE)
+```
+23.Civilian Noninstitutional Population, 16+ (POP)
+
+tcode=5 
+```{r}
+pop <- read_excel("~/Desktop/dse3101/popMvMd.xlsx")
+pop_num <- mutate_all(pop[, 2:ncol(pop)], as.numeric)
+pop_date <- pop[,1]
+transformation_codes <- rep(5, ncol(pop_num))
+
+stat_pop <- fred_transform(data = pop_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+pop_data <- cbind(pop_date, stat_pop)
+write.csv(pop_data, file = "~/Desktop/dse3101/data/pop_mvmd.csv", row.names = FALSE)
+
+```
+24.Civilian Labor Force, 16+ (LFC)
+
+tcode=5
+```{r}
+lfc <- read_excel("~/Desktop/dse3101/lfcMvMd.xlsx")
+lfc_num <- mutate_all(lfc[, 2:ncol(lfc)], as.numeric)
+lfc_date <- lfc[,1]
+transformation_codes <- rep(5, ncol(lfc_num))
+
+stat_lfc <- fred_transform(data = lfc_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+lfc_data <- cbind(lfc_date, stat_lfc)
+write.csv(lfc_data, file = "~/Desktop/dse3101/data/lfc_mvmd.csv", row.names = FALSE)
+```
+25.Civilian Participation Rate, 16+, Constructed (LFPART)
+
+tcode=2
+```{r}
+lfpart <- read_excel("~/Desktop/dse3101/lfpartMvMd.xlsx")
+lfpart_num <- mutate_all(lfpart[, 2:ncol(lfpart)], as.numeric)
+lfpart_date <- lfpart[,1]
+transformation_codes <- rep(2, ncol(lfpart_num))
+
+stat_lfpart <- fred_transform(data = lfpart_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+lfpart_data <- cbind(lfpart_date, stat_lfpart)
+write.csv(lfpart_data, file = "~/Desktop/dse3101/data/lfpart_mvmd.csv", row.names = FALSE)
+```
+26.Unemployment Rate (RUC)
+
+tcode=2
+```{r}
+ruc <- read_excel("~/Desktop/dse3101/rucQvMd.xlsx")
+ruc_num <- mutate_all(ruc[, 2:ncol(ruc)], as.numeric)
+ruc_date <- ruc[,1]
+transformation_codes <- rep(2, ncol(ruc_num))
+
+stat_ruc <- fred_transform(data = ruc_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+ruc_data <- cbind(ruc_date, stat_ruc)
+write.csv(ruc_data, file = "~/Desktop/dse3101/data/ruc_md.csv", row.names = FALSE)
+```
+
+27.Output Per Hour: Business Sector (OPH)
+
+tcode=5
+```{r}
+oph <- read_excel("~/Desktop/dse3101/OPHQvQd.xlsx")
+oph_num <- mutate_all(oph[, 2:ncol(oph)], as.numeric)
+oph_date <- oph[,1]
+transformation_codes <- rep(5, ncol(oph_num))
+
+stat_oph <- fred_transform(data = oph_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+oph_data <- cbind(oph_date, stat_oph)
+write.csv(oph_data, file = "~/Desktop/dse3101/data/oph_98Q4.csv", row.names = FALSE)
+```
+28.Industrial Production Index: Total (IPT)
+
+tcode=5
+```{r}
+ipt <- read_excel("~/Desktop/dse3101/iptMvMd-2.xlsx")
+ipt_num <- mutate_all(ipt[, 2:ncol(ipt)], as.numeric)
+ipt_date <- ipt[,1]
+transformation_codes <- rep(5, ncol(ipt_num))
+
+stat_ipt <- fred_transform(data = ipt_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+ipt_data <- cbind(ipt_date, stat_ipt)
+write.csv(ipt_data, file = "~/Desktop/dse3101/data/ipt_mvmd.csv", row.names = FALSE)
+```
+
+
+29.Housing Starts (HSTARTS)
+
+tcode=5
+```{r}
+hstarts <- read_excel("~/Desktop/dse3101/hstartsMvMd.xlsx")
+hstarts_num <- mutate_all(hstarts[, 2:ncol(hstarts)], as.numeric)
+hstarts_date <- hstarts[,1]
+transformation_codes <- rep(5, ncol(hstarts_num))
+
+stat_hstarts <- fred_transform(data = hstarts_num, type = "fred_md", code = transformation_codes, lag = 1, na.rm = FALSE)
+
+hstarts_data <- cbind(hstarts_date, stat_hstarts)
+write.csv(hstarts_data, file = "~/Desktop/dse3101/data/hstarts_mvmd.csv", row.names = FALSE)
+```
+
+
+
