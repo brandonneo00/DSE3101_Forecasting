@@ -1250,7 +1250,7 @@ server <- function(input, output, session) {
         geom_ribbon(data = ar_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
-        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        labs(title = "Change in Growth of Real GDP Across Time", x = "", y = "Growth in GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
         scale_color_manual(values = c("Historical Change" = "black", 
                                       "Actual Change" = "chartreuse2", 
@@ -1313,7 +1313,7 @@ server <- function(input, output, session) {
         geom_ribbon(data = adl_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
-        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        labs(title = "Change in Growth of Real GDP Across Time", x = "", y = "Growth in GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
         scale_color_manual(values = c("Historical Change" = "black", 
                                       "Actual Change" = "chartreuse2", 
@@ -1376,7 +1376,7 @@ server <- function(input, output, session) {
         geom_ribbon(data = rf_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
-        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        labs(title = "Change in Growth of Real GDP Across Time", x = "", y = "Growth in GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
         scale_color_manual(values = c("Historical Change" = "black", 
                                       "Actual Change" = "chartreuse2", 
@@ -1438,7 +1438,7 @@ server <- function(input, output, session) {
         geom_ribbon(data = combined_forecast_df, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
-        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        labs(title = "Change in Growth of Real GDP Across Time", x = "", y = "Growth in GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
         scale_color_manual(values = c("Historical Change" = "black", 
                                       "Actual Change" = "chartreuse2", 
@@ -1559,7 +1559,7 @@ server <- function(input, output, session) {
         geom_ribbon(data = final_dataframe, aes(x = DATE, ymin = lower_forecast, ymax = upper_forecast), fill = "lightblue", alpha = 0.3) +
         #X intercept
         geom_vline(xintercept = x_intercept_numeric, color = "red", linetype = "dashed") +
-        labs(title = "Change in Real GDP Across Time", x = "Time", y = "Real GDP") +
+        labs(title = "Change in Growth of Real GDP Across Time", x = "", y = "Growth in GDP") +
         scale_x_yearqtr(format = "%Y Q%q") +
         scale_color_manual(values = c("Historical Change" = "black", 
                                       "Actual Change" = "chartreuse2", 
