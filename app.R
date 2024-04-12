@@ -845,8 +845,9 @@ ui <- fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel("Time Series", fluidRow(plotlyOutput("line_plot"),  tableOutput("table_forecast")), textOutput("plot_description"), plotOutput("rf_feature_importance")),
-        tabPanel("Table", DT::DTOutput("dt_table")),
+        tabPanel("Time Series", fluidRow(plotlyOutput("line_plot"),  tableOutput("table_forecast")), textOutput("plot_description"), 
+                 conditionalPanel(condition = "input.model_choice == 'Random Forest'", plotOutput("rf_feature_importance"))),
+        tabPanel("Historical Data", DT::DTOutput("dt_table")),
         # Add a new tab for Statistics with Data Table
         tabPanel("Statistics",
                  h4("Statistics Table"),
@@ -1609,8 +1610,13 @@ server <- function(input, output, session) {
     # # print(reference_col)
     
     stat_df %>%
+      slice(-1) %>%
       select(DATE, reference_col) %>%
-      DT::datatable()
+      mutate(DATE = format(DATE, "%Y-Q%q")) %>%
+      rename(Date = DATE, 
+             "Historical GDP Growth Data" = reference_col) %>%
+      mutate(`Historical GDP Growth Data` = round(`Historical GDP Growth Data`, 3)) %>%
+      DT::datatable(rownames = FALSE)
   })
   
   observeEvent(input$display_new_GDP, {
@@ -1739,9 +1745,13 @@ Hence, our project endeavors to construct and assess resilient forecasting model
   
   output$plot_description <- renderText({
     if (input$model_choice == "Autoregressive Model (AR)"){
-      title <- "Plot Description"
+      title <- "Description"
       description <- "We used an autoregressive (AR) model to forecast GDP values. In this case, GDP values are being forecasted based on their own past values.
     In our model, through estimating the optimal lag lengths, it selects the most relevant past GDP values to predict future trends."
+      paste(title, description, sep = ": ")
+    } else if (input$model_choice == "Random Forest") {
+      title <- "Description"
+      description <- "A Random Forest is an ensemble learning method that builds multiple decision trees during training and combines their predictions to improve accuracy and reduce overfitting. It randomly selects subsets of data and features for each tree, then aggregates their predictions to make the final prediction."
       paste(title, description, sep = ": ")
     }
   })
@@ -1924,7 +1934,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
       # Plot stacked bar chart
       ggplot(long_df, aes(x = category, y = value, fill = t)) +
         geom_bar(stat = "identity") +
-        labs(x = "Category", y = "Feature Importance", fill = "Time") +
+        labs(x = "", y = "Feature Importance", fill = "Category") +
         theme_minimal() +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
       
