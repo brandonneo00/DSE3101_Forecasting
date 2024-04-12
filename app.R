@@ -845,7 +845,14 @@ ui <- fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel("Time Series", fluidRow(plotlyOutput("line_plot"),  tableOutput("table_forecast")), textOutput("plot_description"), 
+        tabPanel("Time Series", fluidRow(plotlyOutput("line_plot"),  
+                                         fluidRow(style = "display: flex; align-items: center;", 
+                                                  column(3,
+                                                         align = "right",
+                                                         # Add text label
+                                                         textOutput("table_label")), 
+                                                  column(9,tableOutput("table_forecast")))), 
+                 textOutput("plot_description"), 
                  conditionalPanel(condition = "input.model_choice == 'Random Forest'", plotOutput("rf_feature_importance"))),
         tabPanel("Historical Data", DT::DTOutput("dt_table")),
         # Add a new tab for Statistics with Data Table
@@ -1859,6 +1866,10 @@ Hence, our project endeavors to construct and assess resilient forecasting model
 
     
     
+  })
+  
+  output$table_label <- renderText({
+    "Summary Table:"
   })
   
   output$rf_feature_importance = renderPlot({
