@@ -766,7 +766,13 @@ ui <- fluidPage(
   
   h4("Welcome to the forefront of macroeconomic forecasting."),
   h4("Step into our innovative lab, where we blend scientific rigour with economic analysis to navigate the complex terrain of GDP forecasting."),
-  h3("Let the experiment begin!"),
+  #h3("Let the experiment begin!"),
+  fluidRow(column(9, 
+                  h3("Let the experiment begin!", style = 'margin: auto;')), 
+           column(3, 
+                  align = "right", 
+                  actionButton("show_about", "About", style = "margin-left: auto;"),
+                   )),
   
   theme = shinythemes::shinytheme("united"),
   
@@ -797,11 +803,11 @@ ui <- fluidPage(
                                                   column(9,tableOutput("table_forecast")))), 
                  textOutput("plot_description"), 
                  conditionalPanel(condition = "input.model_choice == 'Random Forest'", plotOutput("rf_feature_importance"))),
-        tabPanel("Historical Data", shinycssloaders::withSpinner(DT::DTOutput("dt_table"))),
+        tabPanel("Historical Data", shinycssloaders::withSpinner(DT::DTOutput("dt_table"), , type = 8, color.background = "#0275D8", caption = "Model training in progress...")),
         # Add a new tab for Statistics with Data Table
         tabPanel("Statistics",
                  h4("Statistics Table"),
-                 shinycssloaders::withSpinner(DT::DTOutput("stats_table"))
+                 shinycssloaders::withSpinner(DT::DTOutput("stats_table"), , type = 8, color.background = "#0275D8", caption = "Model training in progress...")
         )
       ),
       
@@ -1870,12 +1876,51 @@ server <- function(input, output, session) {
         select(-Forecast_Horizon)
       stat_display_df = t(stat_display_df)
       DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
-    } else if (input$model_choice == "Combined Forecast"){
+    } else if (input$model_choice == "Combined"){
       combined_forecast_df <- combined_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept, forecast_seq_dates)
       print("this is stat table combined forecast")
       print(combined_forecast_df)
       stat_display_df = stat_display_df %>%
         mutate(Combined_Forecast_RMSE = round(combined_forecast_df$rmse, 3)) %>%
+        select(-Forecast_Horizon)
+      stat_display_df = t(stat_display_df)
+      DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
+    } else if (input$model_choice == "Most Optimal") {
+      actual_values <- c()
+      rmse_values <- c()
+      adl_models_rmse <- c()
+      ar_models_rmse <- c()
+      combined_models_rmse <- c()
+      rf_models_rmse <- rf_cal_rmsfe(reference_year, reference_quarter)
+      final_dataframe <- data.frame()
+      
+      for(i in 1:8){
+        print(i)
+        rmse <- c()
+        
+        optimal_ar_model <- fitAR_model(reference_year, reference_quarter, stat_gdp, i, 8)
+        ar_rmse <- ARBacktest(reference_year, reference_quarter, optimal_ar_model, stat_gdp, gdp_date, i, 8)$rmse
+        rmse <- c(rmse, ar_rmse)
+        
+        
+        optimal_adl_model <- fit_adl(reference_year, reference_quarter, routput_gdp, hstart_gdp, i, 8)
+        adl_rmse <- ADLbacktest(reference_year, reference_quarter, optimal_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, i, 8)$rmse
+        rmse <- c(rmse,  adl_rmse)
+        
+        rmse <- c(rmse, rf_models_rmse[i])
+        
+        
+        combined_rmse  <- combined_backtest(reference_year, reference_quarter, routput_gdp, gdp_date, hstart_gdp, hstart_date, i, rf_models_rmse[i], 8)
+        rmse <- c(rmse, combined_rmse)
+        
+        
+        new_row <- optimal_setup(reference_year, reference_quarter, reference_col, input, x_intercept, rmse, i,forecast_seq_dates[i], forecast_seq_dates, rf_models_rmse[i] )
+        print(new_row)
+        
+        final_dataframe <- rbind(final_dataframe, new_row)
+      }
+      stat_display_df = stat_display_df %>%
+        mutate(Most_Optimal_RMSE = round(final_dataframe$rmse, 3)) %>%
         select(-Forecast_Horizon)
       stat_display_df = t(stat_display_df)
       DT::datatable(stat_display_df, colnames = c("1 Step", '2 Step', '3 Step', '4 Step', '5 Step', '6 Step', "7 Step", "8 Step"))
