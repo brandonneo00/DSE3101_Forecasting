@@ -6,13 +6,18 @@
 #
 #    https://shiny.posit.co/
 #
-library(shiny)
-library(plotly)
+library(shiny) #for RShiny app
+library(shinyjs) #for javascript in R
+#remotes::install_github("daattali/shinycssloaders") #please install this to get the captions feature for the loading spinner to avoid errors when running
+library(shinycssloaders) #for loading spinner
+library(shinythemes) #for color palette
+library(plotly) #for converting plots to be interactive
+library(ggplot2) #for making plots nicer than base plots
 library(readxl)
 library(dplyr)
 library(tidyr)
-library(ggplot2)
-library(shinythemes)
+
+
 
 library(BVAR)
 library(readxl) 
@@ -731,6 +736,7 @@ reticulate::source_python("rf_feature_importance.py")
 # average_backtest_test_result$ar_predictions_vector
 # average_backtest_test_result$average_predictions
 jsCode = "shinyjs.showLoading = function() { $('#loading').show(); }; shinyjs.hideLoading = function() { $('#loading').hide(); }"
+
 ui <- fluidPage(
   useShinyjs(),
   extendShinyjs(text = jsCode, functions = c("showLoading", "hideLoading")), 
@@ -770,11 +776,11 @@ ui <- fluidPage(
       sliderInput("year", "Select Year", min=1975, max=last_vintage_year, step=1, value = 2010),
       selectInput("quarter", "Select Quarter", choices=c("Q1", "Q2", "Q3", "Q4")),
       selectInput("alpha", "Select Alpha for Fan Chart", choices=c("50%", "80%", "90%"), selected="50%"),
-      selectInput("model_choice", "Choose Model to show", choices = c("Autoregressive Model (AR)", "Autoregressive Distributed Lag Model (ADL)", "Random Forest", "Combined", "Most Optimal"), selected = "AR"),
+      selectInput("model_choice", "Choose Model to show", choices = c("Autoregressive Model (AR)", "Autoregressive Distributed Lag Model (ADL)", "Random Forest", "Combined", "Most Optimal"), selected = "AR"), 
+      checkboxInput("hide_line_point", "Show Actual Change", value = FALSE),
       tags$div(id = "loading", class = "loader", style = "display: none;",
                tags$div(class = "loading-indicator"),
-               "Model training in progress..."), 
-      checkboxInput("hide_line_point", "Show Actual Change", value = FALSE),
+               "WARNING: Actions related to Random Forest, Combined and Most Optimal will result in a longer run time"),
       tags$img(src = "forecast-analytics.png", height = 200, width = 200),
       tags$img(src = "experiment.png", height = 200, width = 200)
     ),
@@ -782,7 +788,7 @@ ui <- fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel("Time Series", fluidRow(plotlyOutput("line_plot"),  
+        tabPanel("Time Series", fluidRow(shinycssloaders::withSpinner(plotlyOutput("line_plot"), type = 8, color.background = "#0275D8", caption = "Model training in progress..."),  
                                          fluidRow(style = "display: flex; align-items: center;", 
                                                   column(3,
                                                          align = "right",
@@ -791,11 +797,11 @@ ui <- fluidPage(
                                                   column(9,tableOutput("table_forecast")))), 
                  textOutput("plot_description"), 
                  conditionalPanel(condition = "input.model_choice == 'Random Forest'", plotOutput("rf_feature_importance"))),
-        tabPanel("Historical Data", DT::DTOutput("dt_table")),
+        tabPanel("Historical Data", shinycssloaders::withSpinner(DT::DTOutput("dt_table"))),
         # Add a new tab for Statistics with Data Table
         tabPanel("Statistics",
                  h4("Statistics Table"),
-                 DT::DTOutput("stats_table")
+                 shinycssloaders::withSpinner(DT::DTOutput("stats_table"))
         )
       ),
       
@@ -1124,7 +1130,7 @@ optimal_setup <- function(reference_year, reference_quarter, reference_col, inpu
   
 }
 
-library(shinyjs)
+
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
@@ -1997,11 +2003,67 @@ Hence, our project endeavors to construct and assess resilient forecasting model
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
+    } else if (input$model_choice == "Combined") {
+      combined_forecast_df <- combined_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept, forecast_seq_dates)
+      table_forecast_df = data.frame(DATE = true_value_seq_dates, 
+                                     point_forecast = combined_forecast_df$point_forecast)
+      combined_df = full_join(true_df, table_forecast_df, by = "DATE") 
+      summary_df = combined_df %>%
+        select(DATE, ROUTPUT24Q1, point_forecast)%>%
+        mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
+        mutate(DATE = format(DATE, "%Y-Q%q")) %>%
+        rename(Date = DATE,
+               Residual = Difference, 
+               "Latest Vintage Values" = ROUTPUT24Q1, 
+               "Point Forecast" = point_forecast)
+      
+    } else if (input$model_choice == "Most Optimal") {
+      actual_values <- c()
+      rmse_values <- c()
+      adl_models_rmse <- c()
+      ar_models_rmse <- c()
+      combined_models_rmse <- c()
+      rf_models_rmse <- rf_cal_rmsfe(reference_year, reference_quarter)
+      final_dataframe <- data.frame()
+      
+      for(i in 1:8){
+        print(i)
+        rmse <- c()
+        
+        optimal_ar_model <- fitAR_model(reference_year, reference_quarter, stat_gdp, i, 8)
+        ar_rmse <- ARBacktest(reference_year, reference_quarter, optimal_ar_model, stat_gdp, gdp_date, i, 8)$rmse
+        rmse <- c(rmse, ar_rmse)
+        
+        
+        optimal_adl_model <- fit_adl(reference_year, reference_quarter, routput_gdp, hstart_gdp, i, 8)
+        adl_rmse <- ADLbacktest(reference_year, reference_quarter, optimal_adl_model, stat_gdp, gdp_date, hstart_gdp, hstart_date, i, 8)$rmse
+        rmse <- c(rmse,  adl_rmse)
+        
+        rmse <- c(rmse, rf_models_rmse[i])
+        
+        
+        combined_rmse  <- combined_backtest(reference_year, reference_quarter, routput_gdp, gdp_date, hstart_gdp, hstart_date, i, rf_models_rmse[i], 8)
+        rmse <- c(rmse, combined_rmse)
+        
+    
+        new_row <- optimal_setup(reference_year, reference_quarter, reference_col, input, x_intercept, rmse, i,forecast_seq_dates[i], forecast_seq_dates, rf_models_rmse[i] )
+        print(new_row)
+        
+        final_dataframe <- rbind(final_dataframe, new_row)
+      }
+      
+      table_forecast_df = data.frame(DATE = true_value_seq_dates, 
+                                     point_forecast = final_dataframe$point_forecast)
+      combined_df = full_join(true_df, table_forecast_df, by = "DATE") 
+      summary_df = combined_df %>%
+        select(DATE, ROUTPUT24Q1, point_forecast)%>%
+        mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
+        mutate(DATE = format(DATE, "%Y-Q%q")) %>%
+        rename(Date = DATE,
+               Residual = Difference, 
+               "Latest Vintage Values" = ROUTPUT24Q1, 
+               "Point Forecast" = point_forecast)
     }
-    
-    
-    
-    
   })
   
   output$table_label <- renderText({
