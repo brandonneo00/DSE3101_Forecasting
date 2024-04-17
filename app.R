@@ -779,7 +779,7 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      sliderInput("year", "Select Year", min=1975, max=last_vintage_year, step=1, value = 2010),
+      sliderInput("year", "Select Year", min=1975, max=2023, step=1, value = 2010),
       selectInput("quarter", "Select Quarter", choices=c("Q1", "Q2", "Q3", "Q4")),
       selectInput("alpha", "Select Alpha for Fan Chart", choices=c("50%", "80%", "90%"), selected="50%"),
       selectInput("model_choice", "Choose Model to show", choices = c("Autoregressive Model (AR)", "Autoregressive Distributed Lag Model (ADL)", "Random Forest", "Combined", "Most Optimal"), selected = "AR"), 
@@ -2010,7 +2010,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Residual = Difference, 
+               Difference = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
@@ -2029,7 +2029,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Residual = Difference, 
+               Difference = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
     } else if (input$model_choice == "Random Forest") {
@@ -2044,7 +2044,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Residual = Difference, 
+               Difference = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
@@ -2058,7 +2058,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Residual = Difference, 
+               Difference = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
@@ -2105,7 +2105,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Residual = Difference, 
+               Difference = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
     }
