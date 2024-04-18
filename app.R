@@ -363,9 +363,7 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
       }
       else{
         reg_inv <- solve(t(combined_matrix)%*% combined_matrix)
-        
       }
-      
       beta_hat = solve(t(combined_matrix) %*% combined_matrix) %*% (t(combined_matrix) %*% y)
       
       #predicted value
@@ -387,25 +385,16 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
       }
       loocv_mse = counter / length(y)
       all_models_loocv_mse[label] = loocv_mse
-      
-      
-      
     }
-    
     best_model_key = names(which.min(unlist(all_models_loocv_mse)))
     best_model_lag_hstart = which.min(unlist(all_models_loocv_mse))
-    # # print(best_model_lag_hstart)
-    
-    
     model_ar = fitAR_model(vintage_year, vintage_quarter, routput_df, forecast_horizon, max_lags)
     best_model_lag_routput = length(coef(model_ar))-1
     best_model <- dynlm(routput_ts ~ L(routput_ts, 1:best_model_lag_routput) + L(hstart_ts, 1:best_model_lag_hstart))
-    # # print(best_model)
     
     optimal_model$routput_lag <- best_model_lag_routput
     optimal_model$hstart_lag <- best_model_lag_hstart
-    optimal_model$model <- best_model
-    
+    optimal_model$model <- best_model 
   }
   
   return(optimal_model)
