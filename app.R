@@ -735,11 +735,9 @@ reticulate::source_python("rf_feature_importance.py")
 # average_backtest_test_result$adl_predictions_vector
 # average_backtest_test_result$ar_predictions_vector
 # average_backtest_test_result$average_predictions
-jsCode = "shinyjs.showLoading = function() { $('#loading').show(); }; shinyjs.hideLoading = function() { $('#loading').hide(); }"
+
 
 ui <- fluidPage(
-  useShinyjs(),
-  extendShinyjs(text = jsCode, functions = c("showLoading", "hideLoading")), 
   ## Inserting background image
   tags$head(
     tags$style(
@@ -781,12 +779,10 @@ ui <- fluidPage(
     sidebarPanel(
       sliderInput("year", "Select Year", min=1975, max=2023, step=1, value = 2010),
       selectInput("quarter", "Select Quarter", choices=c("Q1", "Q2", "Q3", "Q4")),
-      selectInput("alpha", "Select Alpha for Fan Chart", choices=c("50%", "80%", "90%"), selected="50%"),
+      selectInput("alpha", "Select Coverage for Fan Chart", choices=c("50%", "80%", "90%"), selected="50%"),
       selectInput("model_choice", "Choose Model to show", choices = c("Autoregressive Model (AR)", "Autoregressive Distributed Lag Model (ADL)", "Random Forest", "Combined", "Most Optimal"), selected = "AR"), 
       checkboxInput("hide_line_point", "Show Actual Change", value = FALSE),
-      tags$div(id = "loading", class = "loader", style = "display: none;",
-               tags$div(class = "loading-indicator"),
-               "WARNING: Actions related to Random Forest, Combined and Most Optimal will result in a longer run time"),
+      tags$div(style = "color: red;", "WARNING: Actions related to Random Forest, Combined and Most Optimal will result in a longer run time"),
       tags$img(src = "forecast-analytics.png", height = 200, width = 200),
       tags$img(src = "experiment.png", height = 200, width = 200)
     ),
@@ -1158,8 +1154,6 @@ server <- function(input, output, session) {
   #   }
   # })
   
- observeEvent(input$model_choice, {
-   js$showLoading()
    output$line_plot = renderPlotly({
      # if (input$year == last_vintage_year & input$quarter == last_vintage_quarter){
      #   reference_year = substr(input$year, start = 3, stop = 4)
@@ -1380,7 +1374,6 @@ server <- function(input, output, session) {
        }
        
        plotly_plot <- ggplotly(gg, tooltip = "text")
-       js$hideLoading()
        return(plotly_plot)
        
      } else if (input$model_choice == "Autoregressive Distributed Lag Model (ADL)") {
@@ -1446,7 +1439,6 @@ server <- function(input, output, session) {
        
        # print("hello ADL")
        # # print(adl_forecast_df)
-       js$hideLoading()
        return(plotly_plot)
        
      } else if (input$model_choice == "Random Forest"){
@@ -1507,7 +1499,6 @@ server <- function(input, output, session) {
        }
        
        plotly_plot <- ggplotly(gg, tooltip = "text")
-       js$hideLoading()
        return(plotly_plot)
        
      } else if (input$model_choice == "Combined"){
@@ -1573,7 +1564,6 @@ server <- function(input, output, session) {
        
        # print("hello ADL")
        # # print(adl_forecast_df)
-       js$hideLoading()
        return(plotly_plot)
      } else if (input$model_choice == "Most Optimal"){
        print("Optimized Model HERE HERE HERE")
@@ -1740,7 +1730,6 @@ server <- function(input, output, session) {
        }
        
        plotly_plot <- ggplotly(gg, tooltip = "text")
-       js$hideLoading()
        return(plotly_plot)
        
        
@@ -1751,7 +1740,6 @@ server <- function(input, output, session) {
      
    })
    
- })
   
   output$dt_table = DT::renderDT({
     col_prefix = "ROUTPUT"
@@ -1947,6 +1935,18 @@ Hence, our project endeavors to construct and assess resilient forecasting model
       title <- "Description"
       description <- "A Random Forest is an ensemble learning method that builds multiple decision trees during training and combines their predictions to improve accuracy and reduce overfitting. It randomly selects subsets of data and features for each tree, then aggregates their predictions to make the final prediction."
       paste(title, description, sep = ": ")
+    }else if (input$model_choice == "Autoregressive Distributed Lag Model (ADL)") {
+      title <- "Description"
+      description <- "We employed an autoregressive distributed lag (ADL) model to forecast GDP values. In this approach, GDP predictions are made by considering both the historical values of GDP and the past values of other relevant variables such as Housing Start. Housing start measures the total number of new privately owned housing units for which construction was initiated during a specified period. Our model, through the estimation of optimal lag lengths for each variable, selects the most relevant past values to forecast future GDP trends."
+      paste(title, description, sep = ": ")
+    }else if (input$model_choice == "Combined") {
+      title <- "Description"
+      description <- "We used a combined model to forecast GDP values, which takes the average of predictions from our previous three models: Autoregressive (AR), Autoregressive Distributed Lag (ADL), and Random Forest. In this approach, GDP values are forecasted not only based on their own past values but also considering additional explanatory variables like Housing Start and non-linear patterns captured by the different models. The combined model reduces model uncertainty as it takes the average of all 3 models predictions."
+      paste(title, description, sep = ": ")
+    }else if (input$model_choice == "Most Optimal") {
+      title <- "Description"
+      description <- " The most optimal model is developed by selecting the best-performing model for each specific combination of year and forecast horizon. This selection is based on comparing the Root Mean Squared Forecast Error (RMSFE) from backtesting across all four models - (AR, ADL, Random Forest and Combined), choosing the one with the lowest RMSFE to ensure superior performance."
+      paste(title, description, sep = ": ")
     }
   })
   
@@ -2010,7 +2010,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Difference = Difference, 
+               "Forecasting Error" = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
@@ -2029,7 +2029,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Difference = Difference, 
+               "Forecasting Error" = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
     } else if (input$model_choice == "Random Forest") {
@@ -2044,7 +2044,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Difference = Difference, 
+               "Forecasting Error" = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
@@ -2058,7 +2058,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Difference = Difference, 
+               "Forecasting Error" = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
       
@@ -2105,7 +2105,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
         mutate(Difference = ROUTPUT24Q1 - point_forecast) %>%
         mutate(DATE = format(DATE, "%Y-Q%q")) %>%
         rename(Date = DATE,
-               Difference = Difference, 
+               "Forecasting Error" = Difference, 
                "Latest Vintage Values" = ROUTPUT24Q1, 
                "Point Forecast" = point_forecast)
     }
