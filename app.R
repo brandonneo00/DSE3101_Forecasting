@@ -580,14 +580,11 @@ ARBacktest <- function(vintage_year, vintage_quarter, model, routput_gdp, routpu
   
   while (count < 50) {
     lagged_values <- c()
-    
     for (i in 1:optimal_lag) {
       starting_row <- starting_row_index + count
       lagged_values <- c(lagged_values, routput_column[starting_row - forecast_horizon - i])
     }
-    
     prediction <- ar_predict_function(model = model, optimal_lag_routput = optimal_lag, routput_values = lagged_values)
-    
     actual_values <- c(actual_values, last_column[starting_row_index + count])
     prediction_values <- c(prediction_values, prediction)
     count <- count + 1
