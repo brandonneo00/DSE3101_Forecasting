@@ -1,6 +1,6 @@
 # DSE3101 Forecasting Group 3
 
-🚀### **Where creactivity meets functionality**🚀
+### 🚀**Where creactivity meets functionality**🚀
 
 ---
 
