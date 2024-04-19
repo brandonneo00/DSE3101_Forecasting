@@ -16,7 +16,6 @@ library(stringr)
 
 
 library(BVAR)
-library(readxl) 
 library(dplyr)
 library(zoo)
 library(DT)
@@ -182,7 +181,7 @@ fitAR_model = function(vintage_year, vintage_quarter, df, forecast_horizon, max_
     best_model_key = names(which.min(unlist(all_models_aic)))
     best_model_lag = which.min(unlist(all_models_aic)) #optimal lag for forecast horizon 1
     best_model = all_models[best_model_lag] 
-
+    
   } else{ #for beyond 1 step ahead forecast
     all_models_loocv_mse = list()
     
@@ -245,13 +244,14 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
   
   col_prefix = "ROUTPUT"
   reference_col = paste(col_prefix, vintage_year, vintage_quarter, sep="")
-  
   column_index <- which(names(routput_df) == reference_col)
+  
   subset_routput_df = as.matrix(routput_df[,column_index])
   subset_hstart_df = match_quarter_to_month(reference_col, hstart_df)
+  
   routput_start <- find_quarter_year(routput_df[,column_index])
   hstart_start <- find_quarter_year(subset_hstart_df)
- 
+  # # print(subset_hstart_df)
   routput_ts <- ts(na.omit(subset_routput_df), start=c(routput_start$year,routput_start$quarter), frequency = 4)
   hstart_ts <- ts(na.omit(subset_hstart_df), start=c(hstart_start$year, hstart_start$quarter), frequency=4)
   
@@ -333,7 +333,9 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
       }
       else{
         reg_inv <- solve(t(combined_matrix)%*% combined_matrix)
+        
       }
+      
       beta_hat = solve(t(combined_matrix) %*% combined_matrix) %*% (t(combined_matrix) %*% y)
       
       #predicted value
@@ -355,16 +357,25 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
       }
       loocv_mse = counter / length(y)
       all_models_loocv_mse[label] = loocv_mse
+      
+      
+      
     }
+    
     best_model_key = names(which.min(unlist(all_models_loocv_mse)))
     best_model_lag_hstart = which.min(unlist(all_models_loocv_mse))
+    # # print(best_model_lag_hstart)
+    
+    
     model_ar = fitAR_model(vintage_year, vintage_quarter, routput_df, forecast_horizon, max_lags)
     best_model_lag_routput = length(coef(model_ar))-1
     best_model <- dynlm(routput_ts ~ L(routput_ts, 1:best_model_lag_routput) + L(hstart_ts, 1:best_model_lag_hstart))
+    # # print(best_model)
     
     optimal_model$routput_lag <- best_model_lag_routput
     optimal_model$hstart_lag <- best_model_lag_hstart
-    optimal_model$model <- best_model 
+    optimal_model$model <- best_model
+    
   }
   
   return(optimal_model)
@@ -545,11 +556,14 @@ ARBacktest <- function(vintage_year, vintage_quarter, model, routput_gdp, routpu
   
   while (count < 50) {
     lagged_values <- c()
+    
     for (i in 1:optimal_lag) {
       starting_row <- starting_row_index + count
       lagged_values <- c(lagged_values, routput_column[starting_row - forecast_horizon - i])
     }
+    
     prediction <- ar_predict_function(model = model, optimal_lag_routput = optimal_lag, routput_values = lagged_values)
+    
     actual_values <- c(actual_values, last_column[starting_row_index + count])
     prediction_values <- c(prediction_values, prediction)
     count <- count + 1
