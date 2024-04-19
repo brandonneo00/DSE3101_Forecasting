@@ -1471,8 +1471,6 @@ server <- function(input, output, session) {
     #to form the colname required to subset from the dataframe
     reference_col = paste(col_prefix, reference_year, reference_quarter, sep="")
     
-    # # print(reference_col)
-    
     stat_df %>%
       slice(-1) %>%
       select(DATE, reference_col) %>%
@@ -1481,12 +1479,6 @@ server <- function(input, output, session) {
              "Historical GDP Growth Data" = reference_col) %>%
       mutate(`Historical GDP Growth Data` = round(`Historical GDP Growth Data`, 3)) %>%
       DT::datatable(rownames = FALSE)
-  })
-  
-  observeEvent(input$display_new_GDP, {
-    text_about = "hello"
-    showModal(modalDialog(text_about, title="Me"))
-    
   })
   
   output$stats_table = DT::renderDT({
@@ -1546,9 +1538,6 @@ server <- function(input, output, session) {
     # very last col available in the data 
     true_value_start_date = zoo::as.yearqtr(paste(input$year, input$quarter, sep=" "))
     true_value_seq_dates = seq(true_value_start_date, length.out = 8, by = 1/4)
-    
-    #true_value_start_date = zoo::as.yearqtr(paste(x_intercept_year, x_intercept_quarter, sep=" "))
-    #true_value_seq_dates = seq(true_value_start_date, length.out = 9, by = 1/4)
     
     last_available_vintage = get_last_available_vintage(stat_df)
     true_df = stat_df %>% 
