@@ -233,21 +233,18 @@ def random_forest (x1, x2,horizon,feature_importance, feature_name, n_tree = 50)
 #######################################input
 feature_importance_scores = []
 feature_names =[]
-n_rep = 5
+n_rep = 1
 ###########################################
 
-def rf (x1, x2, x3):
-    if not x3[1].isdigit():
-        horizon = int(x3[0])
-    else:
-        horizon = int(x3[0:2])
+def rf (x1, x2,n_rep):
+    horizon = 8
     prediction_array = np.array([])
     
     for i in range(1, horizon+1):
         for j in range (n_rep):
             result = 0
             
-            result = result + random_forest (x1, x2, i,feature_importance_scores, feature_names, n_tree = 25) [-1]
+            result = result + random_forest (x1, x2, i,feature_importance_scores, feature_names, n_tree = 15) [-1]
         
             #print(prediction_array)
         prediction_array= np.append(prediction_array, result)
@@ -301,12 +298,10 @@ def get_unique_feature_names():
             start_index = index.find('(')
             end_index = index.find(')')
             if start_index != -1 and end_index != -1:
-                substring = index[0:start_index]
+                substring = index[0:start_index-4]
                 modified_indices.append(substring)
 
         unique= list(set(modified_indices))
         unique_modified_indices.append(unique)
-    # Display the modified indices
+
     return unique_modified_indices
-
-

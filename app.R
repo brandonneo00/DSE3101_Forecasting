@@ -22,6 +22,11 @@ library(DT)
 
 library(dynlm)
 
+library(reticulate)
+reticulate::source_python("RandomForestTS.py")
+reticulate::source_python("rf_backtesting.py")
+reticulate::source_python("rf_feature_importance.py")
+
 # Read the Excel file using the correct file path
 path_to_data = "ROUTPUTQvQd.xlsx"
 gdp_raw <- read_excel(path_to_data, col_names = TRUE)
@@ -40,6 +45,15 @@ stat_gdp <- fred_transform(data = gdp_num, type = "fred_qd", code = transformati
 stat_df = data.frame(gdp_date, stat_gdp)
 stat_df$DATE = zoo::as.yearqtr(stat_df$DATE, format = "%Y:Q%q")
 stat_df
+
+
+routput <- read_excel('ROUTPUTQvQd.xlsx')
+routput <- routput %>%
+  mutate(across(-DATE, ~ifelse(. == "#N/A", NA_real_, as.numeric(as.character(.)))))
+routput_num <- routput[, 2:ncol(routput)] 
+routput_date <- routput[,1]
+transformation_codes <- rep(5, ncol(routput_num))  # Apply the fred_transform function with the transformation codes 
+routput_gdp <- fred_transform(data = routput_num, type = "fred_qd", code = transformation_codes, na.rm= FALSE)
 
 
 # getting the last available vintage for comparing against fan chart
@@ -62,13 +76,11 @@ get_last_available_vintage = function(stat_df_w_date){
 
 last_vintage = get_last_available_vintage(stat_df)
 last_vintage_year = substr(last_vintage, start = nchar(last_vintage) - 3, stop = nchar(last_vintage) - 2)
-#earliest_year = min(as.integer(format(stat_df$DATE, "%Y")))
+earliest_year = min(as.integer(format(stat_df$DATE, "%Y")))
 last_vintage_year = as.integer(paste("20", last_vintage_year, sep=""))
 last_vintage_quarter = substr(last_vintage, start = nchar(last_vintage) - 1, stop = nchar(last_vintage))
 all_poss_quarters = c("Q1", "Q2", "Q3", "Q4")
 
-
-reticulate::source_python("rf_backtesting.py")
 
 # function to find optimal lags for AR
 fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
@@ -147,8 +159,6 @@ fitAR = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
   return(as.numeric(gsub("[^0-9]", "", best_model_lag)))
 }
 
-ar_test = fitAR(65, "Q4", stat_gdp, 2, 8)
-ar_test
 
 # Variation of fitAR model that returns the model itself
 fitAR_model = function(vintage_year, vintage_quarter, df, forecast_horizon, max_lags){
@@ -418,8 +428,6 @@ match_quarter_to_month <- function(quarter_col, hstart_df) {
 }
 
 
-adl <- fit_adl("73", "Q3", stat_gdp, hstart_gdp, 2, 6)
-
 convert_to_full_year <- function(lastTwoDigits){
   yearSuffix <- as.numeric(lastTwoDigits)
   fullYear <- ""
@@ -492,11 +500,6 @@ getADLForecast <- function(vintage_year, vintage_quarter, routput_gdp, hstart_gd
   return(final_value)
 }
 
-adl_forecast = getADLForecast(10, "Q4", stat_gdp, hstart_gdp, 1, adl$routput_lag, adl$hstart_lag)
-adl_forecast
-adl_forecast1 = getADLForecast(10, "Q4", stat_gdp, hstart_gdp, 2, adl$routput_lag, adl$hstart_lag)
-adl_forecast1
-adl_forecast$fit
 
 ar_predict_function <- function(model, optimal_lag_routput, routput_values) {
   coefficients <- coef(model)
@@ -508,16 +511,6 @@ ar_predict_function <- function(model, optimal_lag_routput, routput_values) {
   prediction <- intercept + sum(lag_coefficients * routput_values)
   return(routput_values)
 }
-
-# Assuming you have already fitted the AR model using fitAR_model function
-ar_model <- fitAR_model(65, "Q4", stat_gdp, 2, 8)
-ar_model
-ar_test
-
-#model = fitAR_model(65, "Q4", stat_gdp, 2, 8)
-# Now you can use the predict_function with the fitted model
-predictions <- ar_predict_function(ar_model, ar_test, stat_gdp)
-predictions
 
 
 adl_predict_function <- function(model, optimal_lag_routput, optimal_lag_hstart, routput_values, hstart_values){
@@ -578,8 +571,6 @@ ARBacktest <- function(vintage_year, vintage_quarter, model, routput_gdp, routpu
 }
 
 
-ARBacktest("85", "Q3", ar_model, stat_gdp, gdp_date, 2, 6)
-
 ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routput_gdp, routput_date, hstart_gdp, hstart_date, forecast_horizon, max_lags){
   #adl <- fit_adl(vintage_year, vintage_quarter, routput_gdp, hstart_gdp, forecast_horizon, max_lags)
   model <- optimal_adl_model$model
@@ -632,14 +623,6 @@ ADLbacktest <- function(vintage_year, vintage_quarter, optimal_adl_model, routpu
   return(return_list)
 }
 
-routput <- read_excel('ROUTPUTQvQd.xlsx')
-routput <- routput %>%
-  mutate(across(-DATE, ~ifelse(. == "#N/A", NA_real_, as.numeric(as.character(.)))))
-routput_num <- routput[, 2:ncol(routput)] 
-routput_date <- routput[,1]
-transformation_codes <- rep(5, ncol(routput_num))  # Apply the fred_transform function with the transformation codes 
-routput_gdp <- fred_transform(data = routput_num, type = "fred_qd", code = transformation_codes, na.rm= FALSE)
-
 
 # function to make forecasts
 getForecast <- function(vintage_year, vintage_quarter, df, forecast_horizon, optimal_ar_lag) {
@@ -647,7 +630,7 @@ getForecast <- function(vintage_year, vintage_quarter, df, forecast_horizon, opt
   ref_col = paste(col_prefix, vintage_year, vintage_quarter, sep = "")  
   reference_columm = na.omit(df[,ref_col]) #cleaning the data to extract the reference column  
   reference_column = as.matrix(reference_columm)   
-  test_data = embed(reference_column, optimallag + forecast_horizon)
+  test_data = embed(reference_column, optimal_ar_lag + forecast_horizon)
   lag_names = paste("t", 0:(ncol(test_data)-1), sep = "-") #renaming to t-0 to t-optimallags for colnames  
   colnames(test_data) <- lag_names
   Y = as.matrix(test_data[,1]) #t-0 (1 column and 70 rows)  
@@ -658,14 +641,6 @@ getForecast <- function(vintage_year, vintage_quarter, df, forecast_horizon, opt
   final_value = tail(result$n_step_forecast, 1) #retrieving the last value
   return(final_value)
 }
-
-##forecasting values
-best_model = fitAR(65,"Q4",stat_gdp,2,8)
-optimallag <- as.numeric(gsub("[^0-9]", "", best_model))
-
-
-library(reticulate)
-reticulate::source_python("rf_feature_importance.py")
 
 
 ui <- fluidPage(
@@ -695,7 +670,6 @@ ui <- fluidPage(
   
   h4("Welcome to the forefront of macroeconomic forecasting."),
   h4("Step into our innovative lab, where we blend scientific rigour with economic analysis to navigate the complex terrain of GDP forecasting."),
-  #h3("Let the experiment begin!"),
   fluidRow(column(9, 
                   h3("Let the experiment begin!", style = 'margin: auto;')), 
            column(3, 
@@ -718,7 +692,7 @@ ui <- fluidPage(
       tags$img(src = "experiment.png", height = 200, width = 200)
     ),
     
-    # Show a plot of the generated distribution
+    # Main Panel
     mainPanel(
       tabsetPanel(
         tabPanel("Time Series", fluidRow(shinycssloaders::withSpinner(plotlyOutput("line_plot"), type = 8, color.background = "#0275D8", caption = "Model training in progress..."),  
@@ -926,6 +900,8 @@ combined_setup <- function(reference_year, reference_quarter, reference_col, sta
   reticulate::source_python("rf_backtesting.py")
   reticulate::source_python("rf_feature_importance.py")
   
+  
+  
   adl_forecast_df <- adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
   ar_forecast_df <- ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
   rf_forecast_df <- rf_setup(reference_year, reference_quarter, forecast_seq_dates)
@@ -991,6 +967,10 @@ optimal_setup <- function(reference_year, reference_quarter, reference_col, inpu
     reticulate::source_python("rf_backtesting.py")
     reticulate::source_python("rf_feature_importance.py")
     
+    #reticulate::source_python("./RF/RandomForestTS.py")
+    #reticulate::source_python("./RF/rf_backtesting.py")
+    #reticulate::source_python("./RF/rf_feature_importance.py")
+    
     rf_point_forecast_vector = rf(reference_year, reference_quarter, as.integer(1))
     rf_forecast_df = data.frame(DATE = seq_date,
                                 point_forecast = rf_point_forecast_vector[forecast_horizon],
@@ -1005,6 +985,10 @@ optimal_setup <- function(reference_year, reference_quarter, reference_col, inpu
     reticulate::source_python("RandomForestTS.py")
     reticulate::source_python("rf_backtesting.py")
     reticulate::source_python("rf_feature_importance.py")
+    
+    #reticulate::source_python("./RF/RandomForestTS.py")
+    #reticulate::source_python("./RF/rf_backtesting.py")
+    #reticulate::source_python("./RF/rf_feature_importance.py")
     
     adl_forecast_df <- adl_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
     ar_forecast_df <- ar_setup(reference_year, reference_quarter, reference_col, stat_gdp, hstart_gdp, input, x_intercept)
@@ -1658,7 +1642,6 @@ server <- function(input, output, session) {
 Hence, our project endeavors to construct and assess resilient forecasting models adept at integrating updated GDP data to deliver precise predictions."
     showModal(modalDialog(text_about, title = "About"))
     
-    
   })
   
   
@@ -1929,9 +1912,7 @@ Hence, our project endeavors to construct and assess resilient forecasting model
     } 
   })
   
-  
 }
-
 
 
 

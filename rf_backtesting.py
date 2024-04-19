@@ -5,7 +5,6 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 import matplotlib.pyplot as plt
 
-
 #Read data
 file_paths = [
     r"pop_mvmd.csv",
@@ -58,12 +57,10 @@ for file_path in file_paths:
 
 rinvchi = pd.read_excel("rinvchiQvQd.xlsx")
 
-
-
 monthly_dataframes = []
 
 for file_name in dataframes:
-    # Check if the number of rows in the DataFrame is greater than 308
+    # Check if the number of rows in the DataFrame is greater than 308 (maixmum no of quarters from earliest vintage point till now)
     if len(globals()[file_name]) > 308:
         # Append the file name to the list
         monthly_dataframes.append(file_name)
@@ -118,9 +115,47 @@ def data_extract(lookup):
              result_df = pd.concat([result_df, df[df_q[0]]], axis=1)
     return result_df
 
+##go back 50 data pts
+def subtract_quarters(year, start_quarter, num_quarters):
+    # Extract the year and quarter from the start_quarter
+    zz, quarter = start_quarter.split("Q")
+    year = int(year)
+    quarter = int(quarter)
+    
+    # Convert the start_quarter to its numeric representation
+    numeric_rep = year + (quarter - 1) / 4
+    # Subtract num_quarters from the numeric representation
+    new_numeric_rep = numeric_rep - num_quarters / 4
+    # Calculate the new year and quarter
+    new_year = int(new_numeric_rep)
+    new_quarter = int((new_numeric_rep - new_year) * 4) + 1
+    
+    # Format the new quarter
+    new_quarter_str = f"{new_year}Q{new_quarter}"
+    
+    return new_quarter_str[2:]
 
-#Add lags
-#use lagged observations (e.g. t-x to t-12) as input variables to forecast the current time step (t) , where x is the number of steps ahead
+
+def data_extract(lookup):
+    result_df = pd.DataFrame() 
+    gdp_columns = [col for col in gdp if col.endswith(lookup)]
+    if gdp_columns:
+        # Extract the column along with its header
+        result_df = pd.concat([result_df, gdp["DATE"]], axis=1)
+        #result_df = pd.concat([result_df, gdp[gdp_columns[0]]], axis=1)
+    #other predictor
+    for name in dataframes: 
+        df= globals()[name]  
+        df_q = [col for col in df if col.endswith(lookup)]
+        if df_q:
+            result_df = pd.concat([result_df, df[df_q[0]]], axis=1)
+        else:
+            mlook = get_month_code(lookup)
+            df_q = [col for col in df if col.endswith(mlook)]
+            if df_q:
+             result_df = pd.concat([result_df, df[df_q[0]]], axis=1)
+    return result_df
+
 def series_to_supervised(data, col_name, n_in=1, steps = 1):
     """
     Frame a time series as a supervised learning dataset.
@@ -155,13 +190,12 @@ def series_to_supervised(data, col_name, n_in=1, steps = 1):
     agg = pd.concat(cols, axis=1)
     agg.columns = names
     #agg.dropna(subset=[agg.columns[-1]], inplace=True)
-
-
     return agg
-# add nan below each non_lag col for transformation 
+
+
 def add_na(data, name, n):
     if isinstance(data, pd.DataFrame):
-  
+        # Assuming you want to operate on the first column of the DataFrame
         yy = data.iloc[:, 0].dropna()
     elif isinstance(data, pd.Series):
         yy = data.dropna()
@@ -178,9 +212,8 @@ def add_na(data, name, n):
     return pd.concat([yy, xx])
 
 
-
-def random_forest (x1, x2,horizon, n_tree = 100):
-    lookup = x1[-2:] + x2
+def random_forest_back(lookup,horizon, n_tree = 15):
+    
     step = horizon
 
     df = data_extract(lookup)
@@ -230,20 +263,121 @@ def random_forest (x1, x2,horizon, n_tree = 100):
     rf_model = RandomForestRegressor(n_estimators= n_tree)
     rf_model.fit(X_train, y_train)
     predictions = rf_model.predict(X_test) 
-    return predictions
+    return predictions[-1]
+
+def rf_back(lookup,horizon, rep):
+    result = 0
+    for i in range(rep):
+        result+= random_forest_back(lookup,horizon)
+    return result/ rep
 
 
+def rf_pred (x1, x2, x3, rep):
+    horizon = int(x3[0])
+    rf_pred = []
+    lookup = x1[-2:] + x2
 
 
-def rf (x1, x2, x3):
-    if not x3[1].isdigit():
-        horizon = int(x3[0])
-    else:
-        horizon = int(x3[0:2])
-    prediction_array  = np.zeros(horizon)
+    for i in range(1,horizon+1):
+        rf_pred.append(  rf_back(lookup,i,rep) )
+    return rf_pred
+
+year_name = []
+
+def back_pred(x1, x2, x3, rep):
+    name = []
+    horizon = x3
     
-    for i in range(20):
-     
-        prediction_array = prediction_array + random_forest (x1, x2, horizon , n_tree = 100)
-        #print(prediction_array)
-    return prediction_array/20
+    back_pred = []
+    
+    for i in range(50):
+        new_quarter = subtract_quarters(x1, x2, 50 - i)
+        pred = rf_back(new_quarter, horizon, rep)
+        back_pred.append(pred)
+        
+        if len(name) == 0 or len(back_pred) == 50:
+            name.append(new_quarter)
+
+    return back_pred, name
+
+def pred_50(x1, x2, x3, rep):
+    gg = back_pred(x1, x2, x3, rep)
+    year_name.append(gg[1])
+    return gg[0]
+
+
+def convert_date(date_str):
+
+    year = date_str.split('Q')[0]
+    quarter = date_str.split('Q')[1]
+    return str(year) + ":Q" + str(quarter)
+
+def get_test(start_date, end_date, gdp):
+    # Convert start_date and end_date to year and quarter
+    start= convert_date(start_date)
+    end = convert_date(end_date)
+    
+    # Find the index of start_date and end_date
+
+    start_index = gdp[gdp['DATE'].str.endswith(start)].index[0]
+    #print(start_index)
+    # Find the index of the row where 'date' ends with end_date
+    end_index = gdp[gdp['DATE'].str.endswith(end)].index[0]
+    #print(end_index)
+    # Slice the DataFrame from start_index to end_index
+    filtered_gdp = gdp.loc[start_index:end_index]
+    # Extract ROUTPUT24Q1 column
+    output_data = filtered_gdp['ROUTPUT24Q1']
+    
+    return output_data
+
+
+def get_rmse(pred):
+    start = year_name[0][0]
+    end = year_name[0][1]
+    test = get_test(start,end,gdp)
+    
+    mse = mean_squared_error(test, pred)
+    rmse = np.sqrt(mse)
+    return rmse
+
+
+
+
+
+               
+def back_pred2(x1, x2, n, rep):
+    name = []
+    horizon = n
+    
+    back_pred = []
+    
+    for i in range(50):
+        new_quarter = subtract_quarters(x1, x2, 50 - i)
+        pred = rf_back(new_quarter, horizon, rep)
+        back_pred.append(pred)
+        
+        if len(name) == 0 or len(back_pred) == 50:
+            name.append(new_quarter)
+
+    return back_pred, name
+
+def get_rmse2(pred,year_q):
+    start = year_q[0]
+    end = year_q[1]
+    test = get_test(start,end,gdp)
+    mse = mean_squared_error(test, pred)
+    rmse = np.sqrt(mse)
+    return rmse
+
+
+def total_rmse(x1, x2, x3, rep):
+    horizon = int(x3[0])
+    rmse_total = []
+    for i in range(1,horizon+1):
+        result_arrays = back_pred2(x1, x2, i, rep)
+        vector_50 = result_arrays[0]
+        year_quarter = result_arrays[1]
+        sub_rmse = get_rmse2(vector_50,year_quarter)
+        rmse_total.append(sub_rmse)
+    return rmse_total
