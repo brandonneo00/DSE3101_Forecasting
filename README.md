@@ -26,7 +26,7 @@ To install these packages you can run this in the console of RStudio:
 - install.packages(“remotes”)
 - library(remotes)
 - remotes::install_github("daattali/shinycssloaders", force = TRUE)
-You may be required to enter your github password when installing the shinycssloaders, thereafter you will be be prompted by the console to update some of the existing packages in R and you are encouraged to select the “1. All'' option so that the packages will run without error.
+- You may be required to enter your github password when installing the shinycssloaders, thereafter you will be be prompted by the console to update some of the existing packages in R and you are encouraged to select the “1. All'' option so that the packages will run without error.
 
 Regarding reticulate and RF model:
 - When sourcing the Random Forest py scripts using reticulate, you may be required to install the following python packages: pandas, numpy, scikit-learn (version 1.4.1post1), matplotlib.
