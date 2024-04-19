@@ -274,14 +274,13 @@ fit_adl <- function(vintage_year, vintage_quarter, routput_df, hstart_df, foreca
   
   col_prefix = "ROUTPUT"
   reference_col = paste(col_prefix, vintage_year, vintage_quarter, sep="")
-  column_index <- which(names(routput_df) == reference_col)
   
+  column_index <- which(names(routput_df) == reference_col)
   subset_routput_df = as.matrix(routput_df[,column_index])
   subset_hstart_df = match_quarter_to_month(reference_col, hstart_df)
-  
   routput_start <- find_quarter_year(routput_df[,column_index])
   hstart_start <- find_quarter_year(subset_hstart_df)
-  # # print(subset_hstart_df)
+ 
   routput_ts <- ts(na.omit(subset_routput_df), start=c(routput_start$year,routput_start$quarter), frequency = 4)
   hstart_ts <- ts(na.omit(subset_hstart_df), start=c(hstart_start$year, hstart_start$quarter), frequency=4)
   
